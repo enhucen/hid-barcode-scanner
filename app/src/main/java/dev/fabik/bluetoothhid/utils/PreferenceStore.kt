@@ -303,6 +303,14 @@ open class PreferenceStore {
         val DUPLICATE_FILTER_CUSTOM_SECONDS =
             stringPreferencesKey("duplicate_filter_custom_seconds") defaultsTo "10"
 
+        // Web submission
+        val WEB_SUBMIT_ENABLED = booleanPreferencesKey("web_submit_enabled") defaultsTo false
+        val WEB_SUBMIT_URL = stringPreferencesKey("web_submit_url") defaultsTo ""
+        val WEB_SUBMIT_USERNAME = stringPreferencesKey("web_submit_username") defaultsTo ""
+        val WEB_SUBMIT_PASSWORD = stringPreferencesKey("web_submit_password") defaultsTo ""
+        val WEB_SUBMIT_FIELDS_JSON = stringPreferencesKey("web_submit_fields_json") defaultsTo
+            "[{\"key\":\"code\",\"value\":\"{CODE}\"},{\"key\":\"project\",\"value\":\"Default_Project\"},{\"key\":\"station\",\"value\":\"Station_01\"},{\"key\":\"timestamp\",\"value\":\"{TIMESTAMP}\"}]"
+
         // val RAW_VALUE = booleanPreferencesKey("raw_value") defaultsTo false - Removed
         // val SHOW_POSSIBLE = booleanPreferencesKey("show_possible") defaultsTo false - Removed
         // val HIGHLIGHT_TYPE = intPreferencesKey("highlight").enumDefaultsTo(Highlight::fromIndex) // Box - Removed

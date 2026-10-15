@@ -454,4 +454,27 @@
         <item>Custom</item>
         <item>Permanent (Until code changes)</item>
     </string-array>
+    <string name="web_submission">Web Submission</string>
+    <string name="enable_web_submit">Enable Web Submission</string>
+    <string name="enable_web_submit_desc">Automatically POST scanned data to a Web HTTP API</string>
+    <string name="web_submit_url">Target Web URL</string>
+    <string name="web_submit_url_desc">HTTP or HTTPS API endpoint</string>
+    <string name="web_submit_username">Username</string>
+    <string name="web_submit_username_desc">Optional HTTP Basic Auth username</string>
+    <string name="web_submit_password">Password</string>
+    <string name="web_submit_password_desc">Optional HTTP Basic Auth password</string>
+    <string name="web_submit_manage_fields">Field Mapping (JSON)</string>
+    <string name="web_submit_manage_fields_desc">Configure custom Key-Value pairs to submit</string>
+    <string name="web_submit_fields_hint">Configure key-value pairs submitted in the JSON body. Placeholders like {CODE}, {FORMAT}, {TIMESTAMP}, {DATETIME}, {SCANNER_ID} are supported.</string>
+    <string name="current_mappings">Current Field Pairs</string>
+    <string name="add_field">Add Field</string>
+    <string name="edit_field">Edit Field</string>
+    <string name="field_key">Key</string>
+    <string name="field_value">Value</string>
+    <string name="quick_placeholders">Quick Placeholders:</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
+    <string name="web_submit_success">Web Submit Success (HTTP %d)</string>
+    <string name="web_submit_failed">Web Submit Failed (HTTP %d)</string>
+    <string name="web_submit_error">Web Submit Error: %s</string>
 </resources>

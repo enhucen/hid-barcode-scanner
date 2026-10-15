@@ -398,4 +398,27 @@
         <item>自定义</item>
         <item>永久屏蔽（换码后恢复）</item>
     </string-array>
+    <string name="web_submission">Web HTTP 提交</string>
+    <string name="enable_web_submit">启用 Web 提交</string>
+    <string name="enable_web_submit_desc">扫码后自动以 POST 提交到指定的 Web 接口</string>
+    <string name="web_submit_url">Web 目标网址</string>
+    <string name="web_submit_url_desc">HTTP 或 HTTPS 接口地址 (如 http://192.168.1.100:8080/api)</string>
+    <string name="web_submit_username">认证用户名</string>
+    <string name="web_submit_username_desc">可选，用于 HTTP Basic Auth 认证</string>
+    <string name="web_submit_password">认证密码</string>
+    <string name="web_submit_password_desc">可选，用于 HTTP Basic Auth 认证</string>
+    <string name="web_submit_manage_fields">字段映射配置 (JSON)</string>
+    <string name="web_submit_manage_fields_desc">自定义提交的键值对（支持增、删、改）</string>
+    <string name="web_submit_fields_hint">配置提交至 Web 的 JSON 字段键值对。值支持占位符：{CODE}(条码内容), {FORMAT}(格式), {TIMESTAMP}(毫秒时间戳), {DATETIME}(格式化时间), {SCANNER_ID}(设备编号)。</string>
+    <string name="current_mappings">当前数据键值对列表</string>
+    <string name="add_field">添加字段</string>
+    <string name="edit_field">修改字段</string>
+    <string name="field_key">键名 (Key)</string>
+    <string name="field_value">值 (Value / 占位符)</string>
+    <string name="quick_placeholders">点击快速插入占位符：</string>
+    <string name="edit">编辑</string>
+    <string name="save">保存</string>
+    <string name="web_submit_success">Web 提交成功 (状态码 %d)</string>
+    <string name="web_submit_failed">Web 提交失败 (状态码 %d)</string>
+    <string name="web_submit_error">Web 提交异常：%s</string>
 </resources>

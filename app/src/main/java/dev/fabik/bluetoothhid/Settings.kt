@@ -55,6 +55,11 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShutterSpeed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VideoStable
 import androidx.compose.material.icons.filled.ZoomIn
@@ -124,6 +129,7 @@ fun SettingsContent() {
     val cameraSettings = remember { buildCameraSettings(strings) }
     val scannerSettings =
         remember(isHidOnly) { buildScannerSettings(strings, isHidOnly, context, scope) }
+    val webSubmitSettings = remember { buildWebSubmitSettings(strings, context) }
     val aboutSettings = remember { buildAboutSettings(strings, context, uriHandler, scope) }
 
     LazyColumn(
@@ -146,6 +152,9 @@ fun SettingsContent() {
 
         item { SectionTitle(strings[R.string.scanner]) }
         items(scannerSettings) { it() }
+
+        item { SectionTitle(strings[R.string.web_submission]) }
+        items(webSubmitSettings) { it() }
 
         item { SectionTitle(strings[R.string.about]) }
         items(aboutSettings) { it() }
@@ -704,6 +713,70 @@ internal fun buildScannerSettings(
 
     add {
         SaveScanImageOptionsModal()
+    }
+}
+
+internal fun buildWebSubmitSettings(
+    strings: SettingsStrings,
+    context: Context,
+): List<@Composable () -> Unit> = buildSettings {
+    add {
+        SwitchPreference(
+            title = strings[R.string.enable_web_submit],
+            desc = strings[R.string.enable_web_submit_desc],
+            icon = Icons.Default.CloudUpload,
+            preference = PreferenceStore.WEB_SUBMIT_ENABLED
+        )
+    }
+
+    add {
+        val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
+        if (webSubmitEnabled == true) {
+            TextBoxPreference(
+                title = strings[R.string.web_submit_url],
+                desc = strings[R.string.web_submit_url_desc],
+                icon = Icons.Default.Language,
+                preference = PreferenceStore.WEB_SUBMIT_URL
+            )
+        }
+    }
+
+    add {
+        val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
+        if (webSubmitEnabled == true) {
+            TextBoxPreference(
+                title = strings[R.string.web_submit_username],
+                desc = strings[R.string.web_submit_username_desc],
+                icon = Icons.Default.Person,
+                preference = PreferenceStore.WEB_SUBMIT_USERNAME
+            )
+        }
+    }
+
+    add {
+        val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
+        if (webSubmitEnabled == true) {
+            TextBoxPreference(
+                title = strings[R.string.web_submit_password],
+                desc = strings[R.string.web_submit_password_desc],
+                icon = Icons.Default.Lock,
+                preference = PreferenceStore.WEB_SUBMIT_PASSWORD
+            )
+        }
+    }
+
+    add {
+        val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
+        if (webSubmitEnabled == true) {
+            val dialogState = rememberDialogState()
+            dev.fabik.bluetoothhid.ui.WebSubmitFieldManageDialog(dialogState)
+            ButtonPreference(
+                title = strings[R.string.web_submit_manage_fields],
+                desc = strings[R.string.web_submit_manage_fields_desc],
+                icon = Icons.Default.DataObject,
+                onClick = dialogState::open
+            )
+        }
     }
 }
 

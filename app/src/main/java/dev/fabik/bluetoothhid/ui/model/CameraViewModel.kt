@@ -252,6 +252,15 @@ class CameraViewModel : ViewModel() {
                     viewModelScope.launch {
                         onBarcode(BarcodeResult(value, formatIdx, scanImageName, regexGroups))
                     }
+
+                    viewModelScope.launch {
+                        dev.fabik.bluetoothhid.web.WebSubmitManager.submitScan(
+                            appContext,
+                            value,
+                            ZXingAnalyzer.format2String(format),
+                            now
+                        )
+                    }
                 }
             }
         }
