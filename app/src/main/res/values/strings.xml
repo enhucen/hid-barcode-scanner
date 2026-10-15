@@ -473,6 +473,7 @@
     <string name="field_value">Value</string>
     <string name="quick_placeholders">Quick Placeholders:</string>
     <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
     <string name="save">Save</string>
     <string name="web_submit_success">Web Submit Success (HTTP %d)</string>
     <string name="web_submit_failed">Web Submit Failed (HTTP %d)</string>

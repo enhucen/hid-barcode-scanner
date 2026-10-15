@@ -72,8 +72,7 @@ object WebSubmitManager {
                 PreferenceStore.WEB_SUBMIT_URL,
                 PreferenceStore.WEB_SUBMIT_USERNAME,
                 PreferenceStore.WEB_SUBMIT_PASSWORD,
-                PreferenceStore.WEB_SUBMIT_FIELDS_JSON,
-                PreferenceStore.SCANNER_ID
+                PreferenceStore.WEB_SUBMIT_FIELDS_JSON
             ).first()
 
             val enabled = PreferenceStore.WEB_SUBMIT_ENABLED.extract(prefs)
@@ -88,7 +87,7 @@ object WebSubmitManager {
             val username = PreferenceStore.WEB_SUBMIT_USERNAME.extract(prefs).trim()
             val password = PreferenceStore.WEB_SUBMIT_PASSWORD.extract(prefs).trim()
             val fieldsJson = PreferenceStore.WEB_SUBMIT_FIELDS_JSON.extract(prefs)
-            val scannerId = PreferenceStore.SCANNER_ID.extract(prefs)
+            val scannerId = android.os.Build.MODEL ?: "Android"
 
             val fieldPairs = parseFields(fieldsJson)
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())

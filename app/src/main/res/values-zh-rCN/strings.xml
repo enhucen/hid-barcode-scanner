@@ -417,6 +417,7 @@
     <string name="field_value">值 (Value / 占位符)</string>
     <string name="quick_placeholders">点击快速插入占位符：</string>
     <string name="edit">编辑</string>
+    <string name="delete">删除</string>
     <string name="save">保存</string>
     <string name="web_submit_success">Web 提交成功 (状态码 %d)</string>
     <string name="web_submit_failed">Web 提交失败 (状态码 %d)</string>

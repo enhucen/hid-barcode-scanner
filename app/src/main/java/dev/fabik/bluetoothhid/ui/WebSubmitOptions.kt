@@ -54,8 +54,8 @@ fun WebSubmitFieldManageDialog(dialogState: DialogState) {
 
     val currentFields = remember { mutableStateListOf<WebSubmitManager.FieldPair>() }
 
-    LaunchedEffect(fieldsJson, dialogState.visible) {
-        if (dialogState.visible) {
+    LaunchedEffect(fieldsJson, dialogState.openState) {
+        if (dialogState.openState) {
             currentFields.clear()
             currentFields.addAll(WebSubmitManager.parseFields(fieldsJson))
         }

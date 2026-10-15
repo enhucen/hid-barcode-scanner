@@ -102,6 +102,7 @@ import dev.fabik.bluetoothhid.utils.DuplicateFilterMode
 import dev.fabik.bluetoothhid.utils.LocalDataStore
 import dev.fabik.bluetoothhid.utils.PreferenceStore
 import dev.fabik.bluetoothhid.utils.ProfileManager
+import dev.fabik.bluetoothhid.utils.getPreferenceState
 import dev.fabik.bluetoothhid.utils.rememberEnumPreference
 import dev.fabik.bluetoothhid.utils.setPreference
 import kotlinx.coroutines.CoroutineScope
