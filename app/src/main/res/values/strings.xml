@@ -439,4 +439,19 @@
     <string name="value_extra">Value extra</string>
     <string name="format_extra">Format/type extra</string>
     <string name="source_extra">Scan source extra</string>
+    <string name="duplicate_filter">Duplicate scan filter</string>
+    <string name="duplicate_filter_desc">Prevent submitting the same code repeatedly</string>
+    <string name="duplicate_filter_custom">Custom cooldown (seconds)</string>
+    <string name="duplicate_filter_custom_desc">Cooldown time before the same code can be scanned again</string>
+    <string name="invalid_number">Please enter a valid positive number</string>
+    <string-array name="duplicate_filter_values">
+        <item>No filter (Allow repeat)</item>
+        <item>1s</item>
+        <item>3s</item>
+        <item>5s</item>
+        <item>7s</item>
+        <item>9s</item>
+        <item>Custom</item>
+        <item>Permanent (Until code changes)</item>
+    </string-array>
 </resources>

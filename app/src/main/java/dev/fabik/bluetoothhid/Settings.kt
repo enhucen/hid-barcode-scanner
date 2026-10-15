@@ -93,6 +93,7 @@ import dev.fabik.bluetoothhid.ui.VolumeKeyOptionsModal
 import dev.fabik.bluetoothhid.ui.profileDisplayName
 import dev.fabik.bluetoothhid.ui.rememberDialogState
 import dev.fabik.bluetoothhid.utils.ConnectionMode
+import dev.fabik.bluetoothhid.utils.DuplicateFilterMode
 import dev.fabik.bluetoothhid.utils.LocalDataStore
 import dev.fabik.bluetoothhid.utils.PreferenceStore
 import dev.fabik.bluetoothhid.utils.ProfileManager
@@ -582,6 +583,33 @@ internal fun buildScannerSettings(
             values = strings.array(R.array.scan_freq_values),
             preference = PreferenceStore.SCAN_FREQUENCY
         )
+    }
+
+    add {
+        ComboBoxEnumPreference(
+            title = strings[R.string.duplicate_filter],
+            desc = strings[R.string.duplicate_filter_desc],
+            icon = Icons.Default.FilterAlt,
+            values = strings.array(R.array.duplicate_filter_values),
+            preference = PreferenceStore.DUPLICATE_FILTER_MODE
+        )
+    }
+
+    add {
+        val duplicateFilterMode by rememberEnumPreference(PreferenceStore.DUPLICATE_FILTER_MODE)
+        if (duplicateFilterMode == DuplicateFilterMode.CUSTOM) {
+            val errorString = strings[R.string.invalid_number]
+            TextBoxPreference(
+                title = strings[R.string.duplicate_filter_custom],
+                desc = strings[R.string.duplicate_filter_custom_desc],
+                icon = Icons.Default.Timer,
+                preference = PreferenceStore.DUPLICATE_FILTER_CUSTOM_SECONDS,
+                validator = {
+                    val num = it.toLongOrNull()
+                    if (num == null || num <= 0) errorString else null
+                }
+            )
+        }
     }
 
     add {

@@ -383,4 +383,19 @@
         <item>切换缩放</item>
         <item>触发对焦</item>
     </string-array>
+    <string name="duplicate_filter">连续扫码防重过滤</string>
+    <string name="duplicate_filter_desc">避免相同条码连续重复提交</string>
+    <string name="duplicate_filter_custom">自定义冷却时间（秒）</string>
+    <string name="duplicate_filter_custom_desc">同一条码需间隔指定秒数后方可再次扫描</string>
+    <string name="invalid_number">请输入有效的正整数</string>
+    <string-array name="duplicate_filter_values">
+        <item>不屏蔽</item>
+        <item>1秒</item>
+        <item>3秒</item>
+        <item>5秒</item>
+        <item>7秒</item>
+        <item>9秒</item>
+        <item>自定义</item>
+        <item>永久屏蔽（换码后恢复）</item>
+    </string-array>
 </resources>

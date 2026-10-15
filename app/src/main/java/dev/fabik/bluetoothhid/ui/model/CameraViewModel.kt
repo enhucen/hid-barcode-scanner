@@ -55,6 +55,7 @@ import androidx.lifecycle.viewModelScope
 import dev.fabik.bluetoothhid.R
 import dev.fabik.bluetoothhid.utils.Binarizer
 import dev.fabik.bluetoothhid.utils.CropMode
+import dev.fabik.bluetoothhid.utils.DuplicateFilterMode
 import dev.fabik.bluetoothhid.utils.FocusMode
 import dev.fabik.bluetoothhid.utils.JsEngineService
 import dev.fabik.bluetoothhid.utils.LatencyTrace
@@ -153,6 +154,9 @@ class CameraViewModel : ViewModel() {
 
     private var _initialZoom = 1.0f
 
+    private var lastSubmittedCode: String? = null
+    private var lastSubmittedTimestamp: Long = 0L
+
     @OptIn(ExperimentalCamera2Interop::class)
     suspend fun bindToCamera(
         appContext: Context,
@@ -181,44 +185,73 @@ class CameraViewModel : ViewModel() {
                     }
                     lastBarcode = null
                 }
-            } else if (!value.contentEquals(lastBarcode)) {
-                Log.d(TAG, "New barcode detected: $value")
-                lastBarcode = value
+            } else {
+                val now = System.currentTimeMillis()
+                val isSameCode = (lastSubmittedCode != null && lastSubmittedCode == value)
 
-                val scanImageName = _saveScanPath?.let { path ->
-                    image?.let { image ->
-                        runCatching {
-                            saveScanImage(appContext, image, path)
-                        }.onFailure {
-                            Log.e(TAG, "Error saving scan!", it)
-                            viewModelScope.launch {
-                                Toast.makeText(
-                                    appContext,
-                                    "Error saving scan image!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }.getOrNull()
+                val isBlocked = if (!isSameCode) {
+                    // Switched to a different barcode - immediately allow!
+                    false
+                } else {
+                    // Scanning the same barcode repeatedly
+                    when (_duplicateFilterMode) {
+                        DuplicateFilterMode.OFF -> false
+                        DuplicateFilterMode.SEC_1 -> now - lastSubmittedTimestamp < 1_000L
+                        DuplicateFilterMode.SEC_3 -> now - lastSubmittedTimestamp < 3_000L
+                        DuplicateFilterMode.SEC_5 -> now - lastSubmittedTimestamp < 5_000L
+                        DuplicateFilterMode.SEC_7 -> now - lastSubmittedTimestamp < 7_000L
+                        DuplicateFilterMode.SEC_9 -> now - lastSubmittedTimestamp < 9_000L
+                        DuplicateFilterMode.CUSTOM -> {
+                            val cooldownMs = maxOf(1L, _duplicateFilterCustomSeconds) * 1_000L
+                            now - lastSubmittedTimestamp < cooldownMs
+                        }
+                        DuplicateFilterMode.FOREVER -> true
                     }
                 }
 
-                var value = value
-                _directApplyTemplate?.let {
-                    value = TemplateProcessor.processTemplate(
-                        value,
-                        it,
-                        TemplateProcessor.TemplateMode.RFCOMM,
-                        barcodeType = ZXingAnalyzer.format2String(format),
-                        scanImageFileName = scanImageName,
-                        regexGroups = regexGroups
-                    )
-                }
+                if (isBlocked) {
+                    Log.d(TAG, "Duplicate barcode ignored within cooldown window: $value")
+                } else if (!value.contentEquals(lastBarcode) || isSameCode) {
+                    Log.d(TAG, "New barcode detected: $value")
+                    lastBarcode = value
+                    lastSubmittedCode = value
+                    lastSubmittedTimestamp = now
 
-                val formatIdx = ZXingAnalyzer.format2Index(format)
-                HistoryViewModel.addHistoryItem(value!!, formatIdx)
+                    val scanImageName = _saveScanPath?.let { path ->
+                        image?.let { image ->
+                            runCatching {
+                                saveScanImage(appContext, image, path)
+                            }.onFailure {
+                                Log.e(TAG, "Error saving scan!", it)
+                                viewModelScope.launch {
+                                    Toast.makeText(
+                                        appContext,
+                                        "Error saving scan image!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }.getOrNull()
+                        }
+                    }
 
-                viewModelScope.launch {
-                    onBarcode(BarcodeResult(value, formatIdx, scanImageName, regexGroups))
+                    var value = value
+                    _directApplyTemplate?.let {
+                        value = TemplateProcessor.processTemplate(
+                            value,
+                            it,
+                            TemplateProcessor.TemplateMode.RFCOMM,
+                            barcodeType = ZXingAnalyzer.format2String(format),
+                            scanImageFileName = scanImageName,
+                            regexGroups = regexGroups
+                        )
+                    }
+
+                    val formatIdx = ZXingAnalyzer.format2Index(format)
+                    HistoryViewModel.addHistoryItem(value!!, formatIdx)
+
+                    viewModelScope.launch {
+                        onBarcode(BarcodeResult(value, formatIdx, scanImageName, regexGroups))
+                    }
                 }
             }
         }
@@ -455,6 +488,9 @@ class CameraViewModel : ViewModel() {
     private var _saveScanImageFormat: ScanImageFormat = ScanImageFormat.JPEG
     private var _directApplyTemplate: String? = null
 
+    private var _duplicateFilterMode: DuplicateFilterMode = DuplicateFilterMode.SEC_3
+    private var _duplicateFilterCustomSeconds: Long = 10L
+
     fun updateScanParameters(
         fullyInside: Boolean,
         scanRegex: Regex?,
@@ -470,6 +506,8 @@ class CameraViewModel : ViewModel() {
         multiCodeDetection: Boolean,
         autoSend: Boolean,
         directApplyTemplate: String?,
+        duplicateFilterMode: DuplicateFilterMode = DuplicateFilterMode.SEC_3,
+        duplicateFilterCustomSeconds: Long = 10L,
     ) {
         _scanDelay = frequency.delayMs
         barcodeAnalyzer?.scanDelay = _scanDelay
@@ -500,6 +538,8 @@ class CameraViewModel : ViewModel() {
         _autoSend = autoSend
 
         _directApplyTemplate = directApplyTemplate
+        _duplicateFilterMode = duplicateFilterMode
+        _duplicateFilterCustomSeconds = duplicateFilterCustomSeconds
 
         Log.d(TAG, "Updated scan parameters")
     }

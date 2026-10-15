@@ -93,6 +93,20 @@ enum class ScanFrequency(val delayMs: Int) {
         fun fromIndex(index: Int) = entries.getOrNull(index) ?: NORMAL
     }
 }
+enum class DuplicateFilterMode(val seconds: Long) {
+    OFF(0L),
+    SEC_1(1L),
+    SEC_3(3L),
+    SEC_5(5L),
+    SEC_7(7L),
+    SEC_9(9L),
+    CUSTOM(-1L),
+    FOREVER(-2L);
+
+    companion object {
+        fun fromIndex(index: Int) = entries.getOrNull(index) ?: SEC_3
+    }
+}
 enum class OverlayType {
     SQUARE, RECTANGLE, CUSTOM;
     companion object {
@@ -284,6 +298,10 @@ open class PreferenceStore {
         val ENABLE_UNDO_SEND = booleanPreferencesKey("enable_undo_send") defaultsTo false
         val CLEAR_AFTER_TIME =
             intPreferencesKey("clear_after_time") enumDefaultsTo ClearAfterTime::fromIndex
+        val DUPLICATE_FILTER_MODE =
+            intPreferencesKey("duplicate_filter_mode").enumDefaultsTo(DuplicateFilterMode::fromIndex)
+        val DUPLICATE_FILTER_CUSTOM_SECONDS =
+            stringPreferencesKey("duplicate_filter_custom_seconds") defaultsTo "10"
 
         // val RAW_VALUE = booleanPreferencesKey("raw_value") defaultsTo false - Removed
         // val SHOW_POSSIBLE = booleanPreferencesKey("show_possible") defaultsTo false - Removed
