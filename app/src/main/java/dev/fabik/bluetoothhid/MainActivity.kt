@@ -57,6 +57,8 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalDataStore provides activeDataStore) {
                 BluetoothHIDTheme(window = window) {
                     Surface(Modifier.fillMaxSize()) {
+                        PersistHistory()
+
                         val allowScreenRotation by getPreferenceState(PreferenceStore.ALLOW_SCREEN_ROTATION)
 
                         allowScreenRotation?.let {
@@ -79,8 +81,6 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 NavGraph()
                             }
-
-                            PersistHistory()
                         }
                     }
                 }

@@ -247,7 +247,7 @@ class CameraViewModel : ViewModel() {
                     }
 
                     val formatIdx = ZXingAnalyzer.format2Index(format)
-                    HistoryViewModel.addHistoryItem(value!!, formatIdx)
+                    HistoryViewModel.addHistoryItem(value!!, formatIdx, appContext)
 
                     viewModelScope.launch {
                         onBarcode(BarcodeResult(value, formatIdx, scanImageName, regexGroups))

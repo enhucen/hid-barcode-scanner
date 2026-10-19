@@ -19,7 +19,14 @@ import androidx.compose.ui.util.fastDistinctBy
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.ViewModel
 import dev.fabik.bluetoothhid.R
+import dev.fabik.bluetoothhid.utils.PreferenceStore
 import dev.fabik.bluetoothhid.utils.Serializer
+import dev.fabik.bluetoothhid.utils.getPreference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class HistoryViewModel : ViewModel() {
     private var selectedHistory: SnapshotStateList<Int> = mutableStateListOf<Int>()
@@ -47,35 +54,69 @@ class HistoryViewModel : ViewModel() {
         private const val TAG = "History"
 
         private const val HISTORY_FILE = "history.csv"
+        private const val HISTORY_FILE_TMP = "history.csv.tmp"
         private var historyFileLoaded = false
+
+        private var applicationContext: Context? = null
+        private val saveScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         var historyEntries: SnapshotStateList<HistoryEntry> = mutableStateListOf<HistoryEntry>()
 
+        fun initContext(context: Context) {
+            applicationContext = context.applicationContext
+        }
+
+        fun autoSave(context: Context? = null) {
+            val ctx = context?.applicationContext ?: applicationContext ?: return
+            saveScope.launch {
+                val persist = runCatching {
+                    ctx.getPreference(PreferenceStore.PERSIST_HISTORY).first()
+                }.getOrDefault(true)
+
+                if (persist) {
+                    saveHistory(ctx)
+                }
+            }
+        }
+
+        @Synchronized
         fun saveHistory(context: Context) {
             runCatching {
+                applicationContext = context.applicationContext
                 val file = context.filesDir.resolve(HISTORY_FILE)
+                val tmpFile = context.filesDir.resolve(HISTORY_FILE_TMP)
 
                 // Cleanup file if history empty
                 if (historyEntries.isEmpty()) {
                     context.deleteFile(file.name)
+                    context.deleteFile(tmpFile.name)
                     return
                 }
 
                 Log.d(TAG, "Saving history to: $file")
 
-                file.bufferedWriter().use {
+                // Atomic write via temp file
+                tmpFile.bufferedWriter().use {
                     // Internal format: numeric format for efficiency
                     val entries = historyEntries.map {
                         Serializer.BarcodeEntry(it.value, it.timestamp, it.format.toString())
                     }
                     it.write(Serializer.toCsv(entries))
                 }
+
+                if (tmpFile.exists()) {
+                    if (file.exists()) file.delete()
+                    tmpFile.renameTo(file)
+                }
             }.onFailure {
                 Log.e(TAG, "Failed to store history:", it)
             }
         }
 
+        @Synchronized
         fun restoreHistory(context: Context) {
+            applicationContext = context.applicationContext
+
             // guard for only loading once
             if (historyFileLoaded) {
                 return
@@ -96,6 +137,7 @@ class HistoryViewModel : ViewModel() {
                 val csvContent = file.readText()
                 val parsedEntries = Serializer.fromCsv(csvContent)
 
+                historyEntries.clear()
                 parsedEntries.forEach { entry ->
                     val formatIndex = entry.format.toIntOrNull() ?: -1
                     historyEntries.add(HistoryEntry(entry.text, entry.timestamp, formatIndex))
@@ -105,13 +147,17 @@ class HistoryViewModel : ViewModel() {
             }
         }
 
-        fun addHistoryItem(value: String, format: Int) {
+        fun addHistoryItem(value: String, format: Int, context: Context? = null) {
+            context?.let { applicationContext = it.applicationContext }
             val currentTime = System.currentTimeMillis()
             historyEntries.add(HistoryEntry(value, currentTime, format))
+            autoSave(context)
         }
 
-        fun clearHistory() {
+        fun clearHistory(context: Context? = null) {
+            context?.let { applicationContext = it.applicationContext }
             historyEntries.clear()
+            autoSave(context)
         }
 
         fun exportEntries(
@@ -146,8 +192,10 @@ class HistoryViewModel : ViewModel() {
         fun importHistory(
             content: String,
             format: ImportFormat,
-            formatNames: Array<String>
+            formatNames: Array<String>,
+            context: Context? = null
         ): Int {
+            context?.let { applicationContext = it.applicationContext }
             val parsedEntries = when (format) {
                 ImportFormat.CSV -> Serializer.fromCsv(content)
                 ImportFormat.JSON -> Serializer.fromJson(content)
@@ -164,15 +212,17 @@ class HistoryViewModel : ViewModel() {
                 historyEntries.add(HistoryEntry(entry.text, entry.timestamp, formatIndex))
             }
 
+            autoSave(context)
             return parsedEntries.size
         }
     }
 
-    fun deleteSelectedItems() {
+    fun deleteSelectedItems(context: Context? = null) {
         historyEntries.removeIf {
             selectedHistory.contains(it.hashCode())
         }
         clearSelection()
+        autoSave(context)
     }
 
     fun clearSelection() {

@@ -57,6 +57,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +98,7 @@ import dev.fabik.bluetoothhid.utils.getPreferenceState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -182,6 +184,7 @@ fun HistoryViewModel.HistoryContent(onClick: (HistoryViewModel.HistoryEntry) -> 
 private fun HistoryViewModel.HistoryTopBar(
     scrollBehavior: TopAppBarScrollBehavior, onExit: () -> Unit
 ) {
+    val context = LocalContext.current
     val clearHistoryDialog = rememberDialogState()
 
     // Close search on back button
@@ -254,9 +257,9 @@ private fun HistoryViewModel.HistoryTopBar(
         },
         onConfirm = {
             if (isSelecting) {
-                deleteSelectedItems()
+                deleteSelectedItems(context)
             } else {
-                HistoryViewModel.clearHistory()
+                HistoryViewModel.clearHistory(context)
             }
             close()
         }
@@ -558,7 +561,7 @@ fun HistoryViewModel.ImportSheet() {
                             it.bufferedReader().readText()
                         } ?: ""
 
-                        val count = HistoryViewModel.importHistory(content, format, types)
+                        val count = HistoryViewModel.importHistory(content, format, types, context)
                         Toast.makeText(
                             context,
                             "Imported $count entries",
@@ -644,27 +647,27 @@ fun PersistHistory() {
     val context = LocalContext.current
     val persistHistory by context.getPreferenceState(PreferenceStore.PERSIST_HISTORY)
 
-    persistHistory?.let {
-        ComposableLifecycle { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_CREATE -> {
-                    if (it) CoroutineScope(Dispatchers.IO).launch {
-                        HistoryViewModel.restoreHistory(
-                            context
-                        )
-                    }
-                }
-
-                Lifecycle.Event.ON_DESTROY -> {
-                    if (it) CoroutineScope(Dispatchers.IO).launch {
-                        HistoryViewModel.saveHistory(
-                            context
-                        )
-                    }
-                }
-
-                else -> {}
+    LaunchedEffect(persistHistory) {
+        if (persistHistory == true) {
+            withContext(Dispatchers.IO) {
+                HistoryViewModel.restoreHistory(context)
             }
+        }
+    }
+
+    ComposableLifecycle { _, event ->
+        when (event) {
+            Lifecycle.Event.ON_STOP,
+            Lifecycle.Event.ON_PAUSE,
+            Lifecycle.Event.ON_DESTROY -> {
+                if (persistHistory == true) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        HistoryViewModel.saveHistory(context)
+                    }
+                }
+            }
+
+            else -> {}
         }
     }
 }
