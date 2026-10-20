@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class HistoryViewModel : ViewModel() {
-    private var selectedHistory: SnapshotStateList<Int> = mutableStateListOf<Int>()
+    private var selectedHistory: SnapshotStateList<Long> = mutableStateListOf<Long>()
 
     val selectionSize by derivedStateOf { selectedHistory.size }
     val isSelecting by derivedStateOf { selectedHistory.isNotEmpty() }
@@ -47,11 +47,13 @@ class HistoryViewModel : ViewModel() {
                     && (filteredTypes.isEmpty() || filteredTypes.contains(type))
                     && (filterDateStart == null || timestamp > filterDateStart!!)
                     && (filterDateEnd == null || timestamp < filterDateEnd!!)
-        }
+        }.asReversed()
     }
 
     companion object {
         private const val TAG = "History"
+        private val idCounter = java.util.concurrent.atomic.AtomicLong(1L)
+        fun nextEntryId(): Long = idCounter.getAndIncrement()
 
         private const val HISTORY_FILE = "history.csv"
         private const val HISTORY_FILE_TMP = "history.csv.tmp"
@@ -219,7 +221,7 @@ class HistoryViewModel : ViewModel() {
 
     fun deleteSelectedItems(context: Context? = null) {
         historyEntries.removeIf {
-            selectedHistory.contains(it.hashCode())
+            selectedHistory.contains(it.id)
         }
         clearSelection()
         autoSave(context)
@@ -230,14 +232,14 @@ class HistoryViewModel : ViewModel() {
     }
 
     fun isItemSelected(item: HistoryEntry): Boolean {
-        return selectedHistory.contains(item.hashCode())
+        return selectedHistory.contains(item.id)
     }
 
     fun setItemSelected(item: HistoryEntry, selected: Boolean) {
         if (selected) {
-            selectedHistory.add(item.hashCode())
+            selectedHistory.add(item.id)
         } else {
-            selectedHistory.remove(item.hashCode())
+            selectedHistory.remove(item.id)
         }
     }
 
@@ -249,7 +251,7 @@ class HistoryViewModel : ViewModel() {
         var history = filteredHistory
         if (isSelecting) {
             history = history.fastFilter {
-                selectedHistory.contains(it.hashCode())
+                selectedHistory.contains(it.id)
             }
         }
         if (deduplicate) {
@@ -258,7 +260,7 @@ class HistoryViewModel : ViewModel() {
         return exportEntries(history, exportType, formatNames)
     }
 
-    data class HistoryEntry(val value: String, val timestamp: Long, val format: Int)
+    data class HistoryEntry(val value: String, val timestamp: Long, val format: Int, val id: Long = nextEntryId())
 
     enum class ExportType(
         @StringRes val label: Int,

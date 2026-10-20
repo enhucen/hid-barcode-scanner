@@ -78,10 +78,15 @@ object WebSubmitManager {
             val enabled = PreferenceStore.WEB_SUBMIT_ENABLED.extract(prefs)
             if (!enabled) return@runCatching
 
-            val targetUrl = PreferenceStore.WEB_SUBMIT_URL.extract(prefs).trim()
-            if (targetUrl.isBlank()) {
+                        val rawUrl = PreferenceStore.WEB_SUBMIT_URL.extract(prefs).trim()
+            if (rawUrl.isBlank()) {
                 Log.w(TAG, "Web submit enabled but URL is empty")
                 return@runCatching
+            }
+            val targetUrl = if (!rawUrl.startsWith("http://", ignoreCase = true) && !rawUrl.startsWith("https://", ignoreCase = true)) {
+                "http://$rawUrl"
+            } else {
+                rawUrl
             }
 
             val username = PreferenceStore.WEB_SUBMIT_USERNAME.extract(prefs).trim()
@@ -96,14 +101,14 @@ object WebSubmitManager {
             val payloadJson = JSONObject()
             for (pair in fieldPairs) {
                 val replacedValue = pair.value
-                    .replace("{CODE}", code)
-                    .replace("{FORMAT}", format)
-                    .replace("{TIMESTAMP}", timestamp.toString())
-                    .replace("{DATETIME}", dateTimeStr)
-                    .replace("{SCANNER_ID}", scannerId)
+                    .replace(Regex("(?i)\\{CODE\\}"), code)
+                    .replace(Regex("(?i)\\{FORMAT\\}"), format)
+                    .replace(Regex("(?i)\\{TIMESTAMP\\}"), timestamp.toString())
+                    .replace(Regex("(?i)\\{DATETIME\\}"), dateTimeStr)
+                    .replace(Regex("(?i)\\{SCANNER_ID\\}"), scannerId)
 
                 // If the placeholder was purely {TIMESTAMP}, serialize as long
-                if (pair.value == "{TIMESTAMP}") {
+                if (pair.value.equals("{TIMESTAMP}", ignoreCase = true)) {
                     payloadJson.put(pair.key, timestamp)
                 } else {
                     payloadJson.put(pair.key, replacedValue)
@@ -130,24 +135,33 @@ object WebSubmitManager {
                 }
             }
 
-            OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
-                writer.write(jsonBody)
-                writer.flush()
-            }
-
-            val responseCode = conn.responseCode
-            val isSuccess = responseCode in 200..299
-
-            MainScope().launch {
-                val msg = if (isSuccess) {
-                    context.getString(R.string.web_submit_success, responseCode)
-                } else {
-                    context.getString(R.string.web_submit_failed, responseCode)
+            try {
+                OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { writer ->
+                    writer.write(jsonBody)
+                    writer.flush()
                 }
-                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-            }
 
-            Log.d(TAG, "Web submit finished with code: $responseCode")
+                val responseCode = conn.responseCode
+                val isSuccess = responseCode in 200..299
+
+                runCatching {
+                    val stream = if (isSuccess) conn.inputStream else conn.errorStream
+                    stream?.bufferedReader()?.use { it.readText() }
+                }
+
+                MainScope().launch {
+                    val msg = if (isSuccess) {
+                        context.getString(R.string.web_submit_success, responseCode)
+                    } else {
+                        context.getString(R.string.web_submit_failed, responseCode)
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+
+                Log.d(TAG, "Web submit finished with code: $responseCode")
+            } finally {
+                conn.disconnect()
+            }
         }.onFailure { err ->
             Log.e(TAG, "Web submit request failed", err)
             MainScope().launch {

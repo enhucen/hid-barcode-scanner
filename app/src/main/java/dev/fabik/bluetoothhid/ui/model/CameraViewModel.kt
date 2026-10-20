@@ -209,9 +209,13 @@ class CameraViewModel : ViewModel() {
                     }
                 }
 
+                val isNewDetection = !value.contentEquals(lastBarcode)
+                // If the barcode stays continuously in view, enforce at least 500ms debounce even if OFF
+                val canTriggerContinuous = isSameCode && (now - lastSubmittedTimestamp >= 500L)
+
                 if (isBlocked) {
                     Log.d(TAG, "Duplicate barcode ignored within cooldown window: $value")
-                } else if (!value.contentEquals(lastBarcode) || isSameCode) {
+                } else if (isNewDetection || canTriggerContinuous) {
                     Log.d(TAG, "New barcode detected: $value")
                     lastBarcode = value
                     lastSubmittedCode = value
