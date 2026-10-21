@@ -61,6 +61,11 @@ class HistoryViewModel : ViewModel() {
         private const val HISTORY_FILE_TMP = "history.csv.tmp"
         private var historyFileLoaded = false
 
+        @androidx.annotation.VisibleForTesting
+        internal fun setHistoryFileLoadedForTesting(loaded: Boolean) {
+            historyFileLoaded = loaded
+        }
+
         private var applicationContext: Context? = null
         private val saveScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 

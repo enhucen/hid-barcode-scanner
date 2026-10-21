@@ -9,7 +9,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 class HistoryRegressionTest {
@@ -58,10 +57,8 @@ class HistoryRegressionTest {
         historyFile.writeText("sample_code,12345678,QR_CODE\n")
         assertTrue(historyFile.exists())
 
-        // Access private field historyFileLoaded via reflection to ensure it's false
-        val field = HistoryViewModel.Companion::class.java.getDeclaredField("historyFileLoaded")
-        field.isAccessible = true
-        field.set(HistoryViewModel.Companion, false)
+        // Explicitly set historyFileLoaded to false via testing helper
+        HistoryViewModel.setHistoryFileLoadedForTesting(false)
 
         // Clear in-memory entries
         HistoryViewModel.historyEntries.clear()
