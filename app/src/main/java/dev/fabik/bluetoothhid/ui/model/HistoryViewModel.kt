@@ -1,6 +1,8 @@
 package dev.fabik.bluetoothhid.ui.model
 
 import android.content.Context
+import android.os.Looper
+import kotlinx.coroutines.MainScope
 import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
@@ -85,30 +87,45 @@ class HistoryViewModel : ViewModel() {
         fun saveHistory(context: Context) {
             runCatching {
                 applicationContext = context.applicationContext
-                val file = context.filesDir.resolve(HISTORY_FILE)
-                val tmpFile = context.filesDir.resolve(HISTORY_FILE_TMP)
 
-                // Cleanup file if history empty
-                if (historyEntries.isEmpty()) {
-                    context.deleteFile(file.name)
-                    context.deleteFile(tmpFile.name)
+                // Guard: Do not save (and never delete the file!) if history has not been loaded into memory yet
+                if (!historyFileLoaded) {
+                    Log.w(TAG, "saveHistory skipped: history has not been loaded yet!")
                     return
                 }
 
-                Log.d(TAG, "Saving history to: $file")
+                val file = context.filesDir.resolve(HISTORY_FILE)
+                val tmpFile = context.filesDir.resolve(HISTORY_FILE_TMP)
 
-                // Atomic write via temp file
-                tmpFile.bufferedWriter().use {
-                    // Internal format: numeric format for efficiency
-                    val entries = historyEntries.map {
+                // Cleanup file if history is genuinely empty
+                if (historyEntries.isEmpty()) {
+                    context.deleteFile(file.name)
+                    context.deleteFile(tmpFile.name)
+                    Log.d(TAG, "History is empty, removed file: $file")
+                    return
+                }
+
+                Log.d(TAG, "Saving history to: $file (count: ${historyEntries.size})")
+
+                val entriesSnapshot = historyEntries.toList()
+                tmpFile.bufferedWriter().use { writer ->
+                    val entries = entriesSnapshot.map {
                         Serializer.BarcodeEntry(it.value, it.timestamp, it.format.toString())
                     }
-                    it.write(Serializer.toCsv(entries))
+                    writer.write(Serializer.toCsv(entries))
+                    writer.flush()
                 }
 
                 if (tmpFile.exists()) {
-                    if (file.exists()) file.delete()
-                    tmpFile.renameTo(file)
+                    val renamed = if (file.exists()) {
+                        file.delete() && tmpFile.renameTo(file)
+                    } else {
+                        tmpFile.renameTo(file)
+                    }
+                    if (!renamed && tmpFile.exists()) {
+                        tmpFile.copyTo(file, overwrite = true)
+                        tmpFile.delete()
+                    }
                 }
             }.onFailure {
                 Log.e(TAG, "Failed to store history:", it)
@@ -119,17 +136,15 @@ class HistoryViewModel : ViewModel() {
         fun restoreHistory(context: Context) {
             applicationContext = context.applicationContext
 
-            // guard for only loading once
             if (historyFileLoaded) {
                 return
             }
-
-            historyFileLoaded = true
 
             runCatching {
                 val file = context.filesDir.resolve(HISTORY_FILE)
 
                 if (!file.exists()) {
+                    historyFileLoaded = true
                     Log.d(TAG, "No history file exists: $file")
                     return
                 }
@@ -139,20 +154,41 @@ class HistoryViewModel : ViewModel() {
                 val csvContent = file.readText()
                 val parsedEntries = Serializer.fromCsv(csvContent)
 
-                historyEntries.clear()
-                parsedEntries.forEach { entry ->
+                val loadedItems = parsedEntries.map { entry ->
                     val formatIndex = entry.format.toIntOrNull() ?: -1
-                    historyEntries.add(HistoryEntry(entry.text, entry.timestamp, formatIndex))
+                    HistoryEntry(entry.text, entry.timestamp, formatIndex)
                 }
+
+                historyFileLoaded = true
+
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    historyEntries.clear()
+                    historyEntries.addAll(loadedItems)
+                } else {
+                    MainScope().launch {
+                        historyEntries.clear()
+                        historyEntries.addAll(loadedItems)
+                    }
+                }
+                Log.d(TAG, "Restored ${loadedItems.size} entries from file successfully")
             }.onFailure {
+                historyFileLoaded = true
                 Log.e(TAG, "Error loading history:", it)
             }
         }
 
         fun addHistoryItem(value: String, format: Int, context: Context? = null) {
             context?.let { applicationContext = it.applicationContext }
+            historyFileLoaded = true
             val currentTime = System.currentTimeMillis()
-            historyEntries.add(HistoryEntry(value, currentTime, format))
+            val entry = HistoryEntry(value, currentTime, format)
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                historyEntries.add(entry)
+            } else {
+                MainScope().launch {
+                    historyEntries.add(entry)
+                }
+            }
             autoSave(context)
         }
 

@@ -17,6 +17,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.fabik.bluetoothhid.bt.BluetoothController
 import dev.fabik.bluetoothhid.bt.rememberBluetoothControllerService
 import dev.fabik.bluetoothhid.ui.NavGraph
+import dev.fabik.bluetoothhid.ui.model.HistoryViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import dev.fabik.bluetoothhid.ui.RequiresBluetoothPermission
 import dev.fabik.bluetoothhid.ui.theme.BluetoothHIDTheme
 import dev.fabik.bluetoothhid.ui.theme.configureWindow
@@ -48,6 +52,10 @@ class MainActivity : ComponentActivity() {
 
         // Load saved active profile before first composition to avoid a flash of wrong settings
         runBlocking { ProfileManager.initialize(applicationContext) }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            HistoryViewModel.restoreHistory(applicationContext)
+        }
 
         setContent {
             // Observe active DataStore so all composables recompose on profile switch

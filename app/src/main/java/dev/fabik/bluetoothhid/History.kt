@@ -94,7 +94,7 @@ import dev.fabik.bluetoothhid.ui.rememberDialogState
 import dev.fabik.bluetoothhid.ui.tooltip
 import dev.fabik.bluetoothhid.utils.ComposableLifecycle
 import dev.fabik.bluetoothhid.utils.PreferenceStore
-import dev.fabik.bluetoothhid.utils.getPreferenceState
+import dev.fabik.bluetoothhid.utils.getPreferenceStateDefault
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -645,10 +645,10 @@ private fun ImportSheetContent(
 @Composable
 fun PersistHistory() {
     val context = LocalContext.current
-    val persistHistory by context.getPreferenceState(PreferenceStore.PERSIST_HISTORY)
+    val persistHistory by context.getPreferenceStateDefault(PreferenceStore.PERSIST_HISTORY)
 
     LaunchedEffect(persistHistory) {
-        if (persistHistory == true) {
+        if (persistHistory) {
             withContext(Dispatchers.IO) {
                 HistoryViewModel.restoreHistory(context)
             }
@@ -660,7 +660,7 @@ fun PersistHistory() {
             Lifecycle.Event.ON_STOP,
             Lifecycle.Event.ON_PAUSE,
             Lifecycle.Event.ON_DESTROY -> {
-                if (persistHistory == true) {
+                if (persistHistory) {
                     CoroutineScope(Dispatchers.IO).launch {
                         HistoryViewModel.saveHistory(context)
                     }
