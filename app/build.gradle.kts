@@ -45,8 +45,8 @@ android {
         applicationId = "dev.fabik.bluetoothhid"
         minSdk = 28
         targetSdk = 37
-        versionCode = 60
-        versionName = "2.3.2"
+        versionCode = 61
+        versionName = "2.3.3"
 
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitHash\"")
 
