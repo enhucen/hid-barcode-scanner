@@ -244,7 +244,7 @@ open class PreferenceStore {
             intPreferencesKey("vol_action_down") enumDefaultsTo VolumeKeyAction::fromIndex
         val VOLUME_ON_RELEASE = booleanPreferencesKey("vol_on_release") defaultsTo false
         val VOLUME_ZOOM_LEVEL = floatPreferencesKey("vol_action_zoom") defaultsTo 1f
-        val SEND_DELAY = floatPreferencesKey("send_delay") defaultsTo 10f
+        val SEND_DELAY = floatPreferencesKey("send_delay") defaultsTo 20f
         val KEYBOARD_LAYOUT = intPreferencesKey("keyboard_layout").enumDefaultsTo(KeyboardLayout::fromIndex)
         val EXTRA_KEYS = intPreferencesKey("extra_keys").enumDefaultsTo(ExtraKeys::fromIndex)
         val TEMPLATE_TEXT = stringPreferencesKey("template_text") defaultsTo ""

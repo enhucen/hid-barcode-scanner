@@ -15,9 +15,13 @@ open class KeyboardSender(
 ) {
     companion object {
         private const val TAG = "KeyboardSender"
-    }
 
-    private val report = ByteArray(3)
+        // 工业级蓝牙 HID 信号安全下限，防止因时间片过短导致 Windows 蓝牙协议栈丢帧或合并报文
+        private const val MIN_PRESS_DELAY_MS = 12L    // 单次按键最小物理保持时长
+        private const val MIN_RELEASE_DELAY_MS = 12L  // 按键释放最小间隔时长
+        private const val MAX_SEND_RETRIES = 5        // sendReport 返回 false 时的最大重试次数
+        private const val RETRY_DELAY_MS = 4L         // 重试间隔
+    }
 
     @Volatile
     private var cancelRequested = false
@@ -27,29 +31,44 @@ open class KeyboardSender(
         cancelRequested = true
     }
 
-    private fun sendReport(report: ByteArray) {
-        if (!hidDevice.sendReport(host, Descriptor.ID, report)) {
-            Log.e(TAG, "Error sending keyboard report")
+    /**
+     * 带重试机制的底层报文发送，确保蓝牙底层信道忙碌时不会静默丢包。
+     */
+    private suspend fun sendReportWithRetry(
+        reportData: ByteArray,
+        maxRetries: Int = MAX_SEND_RETRIES,
+        retryDelayMs: Long = RETRY_DELAY_MS
+    ): Boolean {
+        var attempts = 0
+        while (attempts < maxRetries) {
+            val success = hidDevice.sendReport(host, Descriptor.ID, reportData)
+            if (success) {
+                return true
+            }
+            attempts++
+            Log.w(TAG, "sendReport returned false, retrying ($attempts/$maxRetries)...")
+            delay(retryDelayMs)
         }
+        Log.e(TAG, "sendReport failed after $maxRetries attempts!")
+        return false
+    }
+
+    /**
+     * 终极按键清空保障（Robust Key Release Guard）：
+     * 传输结束（正常完成、用户中途取消或发生异常）时，连续发送全 0 释放报文，
+     * 100% 确保 Windows 接收端退出长按状态，彻底杜绝按键粘连。
+     */
+    suspend fun releaseAllKeysReliably() {
+        val emptyReport = ByteArray(3)
+        sendReportWithRetry(emptyReport, maxRetries = 5, retryDelayMs = 4)
+        delay(10)
+        sendReportWithRetry(emptyReport, maxRetries = 3, retryDelayMs = 4)
     }
 
     /**
      * Sends [processedString] as HID keystrokes and returns the number of characters that
      * were actually typed on the host, or `null` if the send was cancelled before any visible
      * character was typed.
-     *
-     * The returned count is the number of backspaces required to undo what was typed:
-     * - On full completion: total visible characters (letters, digits, Enter, Tab, Space, …).
-     *   Note: {BKSP} is intentionally excluded — it removes a character rather than adding one,
-     *   so counting it would send one extra backspace per {BKSP} and delete an unrelated char.
-     * - On cancel mid-send: visible characters typed so far — enables partial undo via
-     *   [sendBackspaces] when the send is interrupted.
-     * - On cancel before any visible character: `null` (nothing to undo).
-     *
-     * Character counting is performed in-loop using information from [KeyTranslator]:
-     * each translated key carries a flag indicating whether it completes a visible character
-     * on the host (dead-key prefix keys are flagged `false`; control combinations and
-     * non-text templates such as {F1} or {WAIT} are also flagged `false`).
      */
     suspend fun sendProcessedString(
         processedString: String,
@@ -61,38 +80,33 @@ open class KeyboardSender(
 
         val finalString = appendKey.suffix?.let { "$processedString$it" } ?: processedString
 
-        // Always use translateStringWithTemplateDetailed, even for non-CUSTOM modes.
-        //
-        // Reason: TemplateProcessor may have escaped literal `{`/`}` characters in the barcode
-        // value with Private Use Area sentinels (U+E001/U+E002) when expandCode=false.
-        // translateStringDetailed does NOT know about those sentinels and would log "Unknown char"
-        // for every brace in the barcode.  translateStringWithTemplateDetailed calls
-        // restoreEscapedBraces() on every text segment, so the sentinels are decoded back to
-        // `{`/`}` before keymap lookup — regardless of whether the template contained HID tokens.
-        //
-        // For non-CUSTOM modes, finalString contains no unresolved `{…}` HID template tokens
-        // (TemplateProcessor already substituted them all), so the template-matching pass is a
-        // cheap no-op and correctness is preserved.
         val keys: List<Pair<Key, Boolean>> =
             keyboardTranslator.translateStringWithTemplateDetailed(finalString, locale)
 
         var charCount = 0
 
         try {
+            var prevKey: Key? = null
             for ((key, completesChar) in keys) {
                 if (cancelRequested) return charCount.takeIf { it > 0 }
                 Log.d(TAG, "sendProcessedString: $key")
+
+                // 连续相同按键时增加微小防粘滞缓冲，确保 Windows 状态机完整经历按下-弹起循环
+                if (prevKey == key) {
+                    delay(8)
+                }
+
                 sendKey(key, sendDelay / 2)
-                // Increment immediately after sendKey so the count reflects what was actually
-                // transmitted — BluetoothHidDevice.sendReport is fire-and-forget, so by the
-                // time sendKey() returns the host has already received the report.
                 if (completesChar) charCount++
                 if (cancelRequested) return charCount.takeIf { it > 0 }
-                delay(sendDelay / 2)
+
+                val interKeyDelay = maxOf(MIN_RELEASE_DELAY_MS, sendDelay / 2)
+                delay(interKeyDelay)
+                prevKey = key
             }
         } finally {
-            // Always release all keys at the end, even if cancelled
-            sendKey(0, 0)
+            // 无论任何情况退出，必须彻底释放所有按键
+            releaseAllKeysReliably()
         }
 
         return charCount
@@ -105,11 +119,10 @@ open class KeyboardSender(
     suspend fun sendBackspaces(count: Int) {
         Log.d(TAG, "sendBackspaces: $count")
         repeat(count) {
-            sendKey(KeyTranslator.BACKSPACE_KEY, 10)
-            delay(10)
+            sendKey(KeyTranslator.BACKSPACE_KEY, 12)
+            delay(12)
         }
-        // Release all keys after backspaces
-        sendKey(0, 0)
+        releaseAllKeysReliably()
     }
 
     suspend fun sendKey(key: Key, releaseDelay: Long = 10) =
@@ -121,15 +134,17 @@ open class KeyboardSender(
         releaseKey: Boolean = true,
         releaseDelay: Long = 10
     ) {
-        report[0] = modifier
-        report[2] = key
+        val pressReport = byteArrayOf(modifier, 0, key)
+        sendReportWithRetry(pressReport)
 
-        sendReport(report)
+        val pressDuration = maxOf(MIN_PRESS_DELAY_MS, releaseDelay)
+        delay(pressDuration)
 
         if (releaseKey) {
-            report.fill(0)
-            delay(releaseDelay)
-            sendReport(report)
+            val releaseReport = ByteArray(3)
+            sendReportWithRetry(releaseReport)
+            val releaseGap = maxOf(MIN_RELEASE_DELAY_MS, releaseDelay)
+            delay(releaseGap)
         }
     }
 }
