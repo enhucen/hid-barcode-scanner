@@ -7,6 +7,12 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.core.content.FileProvider
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -365,6 +371,9 @@ fun HistoryViewModel.ExportSheet() {
 
     var showSheet by rememberSaveable { mutableStateOf(false) }
     var exportData by rememberSaveable { mutableStateOf("") }
+    var exportFileName by rememberSaveable { mutableStateOf("") }
+    var exportShareMime by rememberSaveable { mutableStateOf("*/*") }
+    var exportShareAfterSave by rememberSaveable { mutableStateOf(true) }
 
     // Additional MIME aliases for CSV (in many providers)
     val CSV_MIME_CANDIDATES = arrayOf(
@@ -392,19 +401,36 @@ fun HistoryViewModel.ExportSheet() {
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 val fileUri = result.data?.data
-                fileUri?.let {
+                fileUri?.let { uri ->
                     runCatching {
-                        context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                             outputStream.bufferedWriter().use { writer ->
                                 writer.write(exportData)
                             }
                         }
+                        Toast.makeText(context, context.getString(R.string.file_saved_successfully), Toast.LENGTH_SHORT).show()
+
+                        // 若勾选了保存后直接分享，通过 FileProvider 缓存生成真实实体文件调起系统分享
+                        if (exportShareAfterSave && exportData.isNotBlank() && exportFileName.isNotBlank()) {
+                            val cacheFile = File(context.cacheDir, exportFileName)
+                            cacheFile.writeText(exportData)
+                            val shareUri = FileProvider.getUriForFile(context, "dev.fabik.bluetoothhid.fileprovider", cacheFile)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = exportShareMime
+                                putExtra(Intent.EXTRA_STREAM, shareUri)
+                                putExtra(Intent.EXTRA_SUBJECT, exportFileName)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, exportString))
+                        }
                     }.onFailure {
                         Log.e("History", "Error saving history to file!", it)
+                        Toast.makeText(context, "Save failed: ${it.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
             exportData = ""
+            exportFileName = ""
         }
 
     if (showSheet) {
@@ -412,19 +438,22 @@ fun HistoryViewModel.ExportSheet() {
             sheetState = state,
             onDismissRequest = { showSheet = false },
             content = {
-                ExportSheetContent { typ, dedup, saveToFile ->
+                ExportSheetContent { typ, dedup, saveToFile, shareAfterSave ->
                     scope.launch { state.hide() }.invokeOnCompletion { showSheet = state.isVisible }
 
                     val data = exportHistory(typ, dedup, types)
 
-                    // (baseMime for picker, filename, extraMimeTypes [for CSV])
-                    val params: Triple<String, String, Array<String>?> = when (typ) {
-                        HistoryViewModel.ExportType.CSV   -> Triple("*/*",            "export.csv", CSV_MIME_CANDIDATES)
-                        HistoryViewModel.ExportType.JSON  -> Triple("application/json","export.json", null)
-                        HistoryViewModel.ExportType.XML   -> Triple("text/xml",        "export.xml",  null)
-                        HistoryViewModel.ExportType.LINES -> Triple("text/plain",      "export.txt",  null)
+                    // 默认按 "扫码记录_年月日_时分秒.扩展名" 命名
+                    val timeStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val prefix = context.getString(R.string.export_file_prefix)
+
+                    // (baseMime for picker, filename, extraMimeTypes [for CSV], shareMime)
+                    val (baseMime, fileName, extraMimes, shareMime) = when (typ) {
+                        HistoryViewModel.ExportType.CSV   -> Quadruple("*/*",             "${prefix}_${timeStr}.csv",  CSV_MIME_CANDIDATES, "*/*")
+                        HistoryViewModel.ExportType.JSON  -> Quadruple("application/json","${prefix}_${timeStr}.json", null,                "application/json")
+                        HistoryViewModel.ExportType.XML   -> Quadruple("text/xml",        "${prefix}_${timeStr}.xml",  null,                "text/xml")
+                        HistoryViewModel.ExportType.LINES -> Quadruple("text/plain",      "${prefix}_${timeStr}.txt",  null,                "text/plain")
                     }
-                    val (baseMime, fileName, extraMimes) = params
 
                     runCatching {
                         if (saveToFile) {
@@ -435,18 +464,20 @@ fun HistoryViewModel.ExportSheet() {
                                 extraMimes?.let { putExtra(Intent.EXTRA_MIME_TYPES, it) }
                             }
                             exportData = data
+                            exportFileName = fileName
+                            exportShareMime = shareMime
+                            exportShareAfterSave = shareAfterSave
                             startForResult.launch(intent)
                         } else {
-                            // For share use cannonical MIME
-                            val shareMime = when (typ) {
-                                HistoryViewModel.ExportType.CSV   -> "*/*"
-                                HistoryViewModel.ExportType.JSON  -> "application/json"
-                                HistoryViewModel.ExportType.XML   -> "text/xml"
-                                HistoryViewModel.ExportType.LINES -> "text/plain"
-                            }
+                            // 不保存到公共存储，直接作为实体文件分享给社交应用
+                            val cacheFile = File(context.cacheDir, fileName)
+                            cacheFile.writeText(data)
+                            val shareUri = FileProvider.getUriForFile(context, "dev.fabik.bluetoothhid.fileprovider", cacheFile)
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = shareMime
-                                putExtra(Intent.EXTRA_TEXT, data)
+                                putExtra(Intent.EXTRA_STREAM, shareUri)
+                                putExtra(Intent.EXTRA_SUBJECT, fileName)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             val shareIntent = Intent.createChooser(intent, exportString)
                             context.startActivity(shareIntent)
@@ -460,13 +491,16 @@ fun HistoryViewModel.ExportSheet() {
     }
 }
 
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
 @Composable
 @Preview
 private fun ExportSheetContent(
-    onSelect: (HistoryViewModel.ExportType, Boolean, Boolean) -> Unit = { _, _, _ -> },
+    onSelect: (HistoryViewModel.ExportType, Boolean, Boolean, Boolean) -> Unit = { _, _, _, _ -> },
 ) {
     var (deduplicateChecked, setDeduplicate) = rememberSaveable { mutableStateOf(true) }
     var (saveIntoFileChecked, setSaveIntoFile) = rememberSaveable { mutableStateOf(true) }
+    var (shareAfterSaveChecked, setShareAfterSave) = rememberSaveable { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -512,6 +546,28 @@ private fun ExportSheetContent(
             Text(stringResource(R.string.save_to_file))
         }
 
+        AnimatedVisibility(visible = saveIntoFileChecked) {
+            Row(
+                Modifier
+                    .toggleable(
+                        value = shareAfterSaveChecked,
+                        role = Role.Checkbox,
+                        onValueChange = setShareAfterSave
+                    )
+                    .padding(start = 28.dp, end = 12.dp, top = 4.dp, bottom = 8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = shareAfterSaveChecked, onCheckedChange = null)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    stringResource(R.string.share_after_save),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         Spacer(Modifier.height(4.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -521,7 +577,7 @@ private fun ExportSheetContent(
                     supportingContent = { Text(stringResource(id = type.description)) },
                     leadingContent = { Icon(type.icon, null) },
                     modifier = Modifier
-                        .clickable { onSelect(type, deduplicateChecked, saveIntoFileChecked) }
+                        .clickable { onSelect(type, deduplicateChecked, saveIntoFileChecked, shareAfterSaveChecked) }
                         .clip(MaterialTheme.shapes.medium)
                 )
             }

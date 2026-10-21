@@ -234,6 +234,9 @@
     <string name="apply">Apply</string>
     <string name="exclude_duplicates">Exclude duplicates</string>
     <string name="save_to_file">Save to file</string>
+    <string name="share_after_save">Share file after saving</string>
+    <string name="file_saved_successfully">File saved successfully</string>
+    <string name="export_file_prefix">ScanRecords</string>
     <string name="invalid_regex">Invalid regex</string>
     <string name="template_error">Template must contain at least one CODE component.</string>
     <string name="template_error_duplicates">Duplicate components not allowed: %1$s</string>

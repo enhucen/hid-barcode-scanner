@@ -240,6 +240,9 @@
     <string name="apply">应用</string>
     <string name="exclude_duplicates">排除重复项</string>
     <string name="save_to_file">保存到文件</string>
+    <string name="share_after_save">保存后直接分享到应用</string>
+    <string name="file_saved_successfully">文件已成功保存</string>
+    <string name="export_file_prefix">扫码记录</string>
     <string name="invalid_regex">无效的正则表达式</string>
     <string name="template_error">模板必须至少包含一个CODE组件。</string>
     <string name="template_error_duplicates">不允许重复组件: %1$s</string>
