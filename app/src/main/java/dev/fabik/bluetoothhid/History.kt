@@ -12,7 +12,6 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
