@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 on:
   push:
@@ -23,24 +23,10 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Extract keystore file
-        if: secrets.KEYSTORE_FILE != ''
-        run: echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > $GITHUB_WORKSPACE/signing-key.jks
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build APKs with Gradle (Signed Release)
-        if: secrets.KEYSTORE_FILE != ''
-        run: |
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/signing-key.jks \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PW }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEYSTORE_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEYSTORE_PW }}
-
-      - name: Build APKs with Gradle (Fallback without secrets)
-        if: secrets.KEYSTORE_FILE == ''
+      - name: Build APKs with Gradle
         run: |
           ./gradlew assembleDebug
           mkdir -p ./app/build/outputs/apk/release
@@ -49,10 +35,6 @@ jobs:
           cp ./app/build/outputs/apk/debug/app-universal-debug.apk ./app/build/outputs/apk/release/app-universal-release.apk
           cp ./app/build/outputs/apk/debug/app-x86_64-debug.apk ./app/build/outputs/apk/release/app-x86_64-release.apk
           cp ./app/build/outputs/apk/debug/app-x86-debug.apk ./app/build/outputs/apk/release/app-x86-release.apk
-
-      - name: Remove keystore file
-        if: secrets.KEYSTORE_FILE != ''
-        run: rm -f $GITHUB_WORKSPACE/signing-key.jks
 
       - name: Create Release
         uses: softprops/action-gh-release@v3

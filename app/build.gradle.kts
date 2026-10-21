@@ -65,7 +65,19 @@ android {
         includeInBundle = false
     }
 
+    signingConfigs {
+        create("enhucen") {
+            storeFile = file("keystore/enhucen.keystore")
+            storePassword = "enhucen@kgooer.2026"
+            keyAlias = "enhucen"
+            keyPassword = "enhucen@kgooer.2026"
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("enhucen")
+        }
         getByName("release") {
             isShrinkResources = true
             isMinifyEnabled = true
@@ -73,7 +85,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("enhucen")
         }
     }
 
