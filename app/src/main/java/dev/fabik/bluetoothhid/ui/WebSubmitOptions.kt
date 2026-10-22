@@ -301,7 +301,7 @@ fun TencentDocsTemplateDialog(dialogState: DialogState) {
             Spacer(Modifier.height(8.dp))
 
             Text(
-                stringResource(R.string.available_placeholders),
+                stringResource(R.string.quick_placeholders),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )

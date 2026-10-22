@@ -1,4 +1,4 @@
-package dev.fabik.bluetoothhid
+﻿package dev.fabik.bluetoothhid
 
 import android.content.ClipData
 import android.content.Context
@@ -652,7 +652,7 @@ internal fun buildScannerSettings(
     /*SwitchPreference(
         title = strings[R.string.raw_value],
         desc = strings[R.string.raw_value_desc],
-        icon = Icons.Default.Description,
+        icon = Icons.Default.Code,
         preference = PreferenceStore.RAW_VALUE
     )*/
 
@@ -783,13 +783,13 @@ internal fun buildWebSubmitSettings(
         val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
         val submitFormat by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_FORMAT)
         if (webSubmitEnabled == true) {
-            if (submitFormat == dev.fabik.bluetoothhid.utils.WebSubmitFormat.TENCENT_DOCS) {
+            if (submitFormat == dev.fabik.bluetoothhid.utils.WebSubmitFormat.TENCENT_DOCS.ordinal) {
                 val dialogState = rememberDialogState()
                 dev.fabik.bluetoothhid.ui.TencentDocsTemplateDialog(dialogState)
                 ButtonPreference(
                     title = strings[R.string.web_submit_manage_tencent_template],
                     desc = strings[R.string.web_submit_manage_tencent_template_desc],
-                    icon = Icons.Default.Description,
+                    icon = Icons.Default.Code,
                     onClick = dialogState::open
                 )
             } else {

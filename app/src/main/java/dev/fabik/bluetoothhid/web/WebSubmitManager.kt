@@ -1,4 +1,4 @@
-package dev.fabik.bluetoothhid.web
+﻿package dev.fabik.bluetoothhid.web
 
 import android.content.Context
 import android.os.Build
@@ -165,7 +165,7 @@ object WebSubmitManager {
                 result
             }
             is String -> {
-                var str = element
+                var str: String = element
                 for ((macro, rep) in replacements) {
                     str = str.replace(Regex("(?i)" + Regex.escape(macro)), rep)
                 }
@@ -206,7 +206,7 @@ object WebSubmitManager {
                 rawUrl
             }
 
-            val submitFormat = PreferenceStore.WEB_SUBMIT_FORMAT.extract(prefs)
+            val submitFormat = PreferenceStore.WEB_SUBMIT_FORMAT.extractEnum(prefs)
             val username = PreferenceStore.WEB_SUBMIT_USERNAME.extract(prefs).trim()
             val password = PreferenceStore.WEB_SUBMIT_PASSWORD.extract(prefs).trim()
             val fieldsJson = PreferenceStore.WEB_SUBMIT_FIELDS_JSON.extract(prefs)
