@@ -1,5 +1,6 @@
 package dev.fabik.bluetoothhid.web
 
+import dev.fabik.bluetoothhid.utils.WebSubmitFormat
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -92,5 +93,81 @@ class WebSubmitManagerTest {
         assertEquals(testTimestamp, payload.getLong("time_ms"))
         assertEquals(expectedDateTime, payload.getString("time_str"))
         assertEquals(testScannerId, payload.getString("device"))
+    }
+
+    @Test
+    fun `buildPayload with standard format generates correct json`() {
+        val json = WebSubmitManager.buildPayload(
+            format = WebSubmitFormat.STANDARD,
+            standardFieldsJson = "",
+            tencentTemplateJson = "",
+            code = "TEST_BARCODE_123",
+            barcodeFormat = "CODE_128",
+            timestamp = 1735660800000L,
+            scannerId = "DeviceModelX"
+        )
+
+        val obj = JSONObject(json)
+        assertEquals("TEST_BARCODE_123", obj.getString("code"))
+        assertEquals("Default_Project", obj.getString("project"))
+        assertEquals("Station_01", obj.getString("station"))
+        assertEquals(1735660800000L, obj.getLong("timestamp"))
+    }
+
+    @Test
+    fun `buildPayload with tencent docs format generates schema and records correctly`() {
+        val testBarcode = "BARCODE_ABC_999"
+        val testTimestamp = 1735660800000L
+        val json = WebSubmitManager.buildPayload(
+            format = WebSubmitFormat.TENCENT_DOCS,
+            standardFieldsJson = "",
+            tencentTemplateJson = WebSubmitManager.DEFAULT_TENCENT_TEMPLATE,
+            code = testBarcode,
+            barcodeFormat = "QR_CODE",
+            timestamp = testTimestamp,
+            scannerId = "Scanner001"
+        )
+
+        val root = JSONObject(json)
+        assertTrue(root.has("schema"))
+        assertTrue(root.has("add_records"))
+
+        // Verify schema definitions
+        val schema = root.getJSONObject("schema")
+        assertEquals("code", schema.getJSONObject("f04Gwj").getString("title"))
+        assertEquals("project", schema.getJSONObject("fpMiuf").getString("title"))
+        assertEquals("station", schema.getJSONObject("feZaVE").getString("title"))
+        assertEquals("single_select", schema.getJSONObject("feZaVE").getString("type"))
+        assertEquals("timestamp", schema.getJSONObject("f0mDed").getString("title"))
+
+        // Verify add_records
+        val records = root.getJSONArray("add_records")
+        assertEquals(1, records.length())
+        val values = records.getJSONObject(0).getJSONObject("values")
+
+        assertEquals(testBarcode, values.getString("f04Gwj"))
+        assertEquals("测试文本", values.getString("fpMiuf"))
+        assertEquals(testTimestamp.toString(), values.getString("f0mDed"))
+
+        val stationArray = values.getJSONArray("feZaVE")
+        assertEquals(1, stationArray.length())
+        assertEquals("测试选项", stationArray.getJSONObject(0).getString("text"))
+    }
+
+    @Test
+    fun `buildPayload with invalid tencent template falls back to default safely`() {
+        val json = WebSubmitManager.buildPayload(
+            format = WebSubmitFormat.TENCENT_DOCS,
+            standardFieldsJson = "",
+            tencentTemplateJson = "{ broken json !!",
+            code = "FALLBACK_CODE",
+            barcodeFormat = "EAN_13",
+            timestamp = 1735660800000L
+        )
+
+        val root = JSONObject(json)
+        assertTrue(root.has("schema"))
+        val values = root.getJSONArray("add_records").getJSONObject(0).getJSONObject("values")
+        assertEquals("FALLBACK_CODE", values.getString("f04Gwj"))
     }
 }

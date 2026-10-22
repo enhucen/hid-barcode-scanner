@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.parcelize")
@@ -45,8 +45,8 @@ android {
         applicationId = "dev.fabik.bluetoothhid"
         minSdk = 28
         targetSdk = 37
-        versionCode = 62
-        versionName = "2.3.4"
+        versionCode = 63
+        versionName = "2.3.5"
 
         buildConfigField("String", "GIT_COMMIT_HASH", "\"$gitHash\"")
 

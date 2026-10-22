@@ -1,11 +1,13 @@
 package dev.fabik.bluetoothhid.web
 
 import android.content.Context
+import android.os.Build
 import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import dev.fabik.bluetoothhid.R
 import dev.fabik.bluetoothhid.utils.PreferenceStore
+import dev.fabik.bluetoothhid.utils.WebSubmitFormat
 import dev.fabik.bluetoothhid.utils.getPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -25,6 +27,44 @@ object WebSubmitManager {
     private const val TAG = "WebSubmitManager"
 
     data class FieldPair(val key: String, val value: String)
+
+    val DEFAULT_TENCENT_TEMPLATE: String = """{
+  "schema": {
+    "f04Gwj": {
+      "title": "code",
+      "type": "text"
+    },
+    "fpMiuf": {
+      "title": "project",
+      "type": "text"
+    },
+    "feZaVE": {
+      "title": "station",
+      "type": "single_select",
+      "enum": [
+        "测试选项"
+      ]
+    },
+    "f0mDed": {
+      "title": "timestamp",
+      "type": "date_time"
+    }
+  },
+  "add_records": [
+    {
+      "values": {
+        "f04Gwj": "{CODE}",
+        "fpMiuf": "测试文本",
+        "feZaVE": [
+          {
+            "text": "测试选项"
+          }
+        ],
+        "f0mDed": "{TIMESTAMP}"
+      }
+    }
+  ]
+}""".trimIndent()
 
     fun parseFields(json: String): List<FieldPair> {
         return runCatching {
@@ -60,6 +100,81 @@ object WebSubmitManager {
         return array.toString()
     }
 
+    fun buildPayload(
+        format: WebSubmitFormat,
+        standardFieldsJson: String,
+        tencentTemplateJson: String,
+        code: String,
+        barcodeFormat: String,
+        timestamp: Long = System.currentTimeMillis(),
+        scannerId: String = Build.MODEL ?: "Android"
+    ): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val dateTimeStr = dateFormat.format(Date(timestamp))
+
+        val replacements = mapOf(
+            "{CODE}" to code,
+            "{FORMAT}" to barcodeFormat,
+            "{TIMESTAMP}" to timestamp.toString(),
+            "{DATETIME}" to dateTimeStr,
+            "{SCANNER_ID}" to scannerId
+        )
+
+        return when (format) {
+            WebSubmitFormat.TENCENT_DOCS -> {
+                val rawJson = tencentTemplateJson.ifBlank { DEFAULT_TENCENT_TEMPLATE }
+                val rootObj = runCatching { JSONObject(rawJson) }.getOrElse { JSONObject(DEFAULT_TENCENT_TEMPLATE) }
+                val processed = replaceInJson(rootObj, replacements) as JSONObject
+                processed.toString(2)
+            }
+            WebSubmitFormat.STANDARD -> {
+                val fieldPairs = parseFields(standardFieldsJson)
+                val payloadJson = JSONObject()
+                for (pair in fieldPairs) {
+                    var replacedValue = pair.value
+                    for ((macro, rep) in replacements) {
+                        replacedValue = replacedValue.replace(Regex("(?i)" + Regex.escape(macro)), rep)
+                    }
+
+                    if (pair.value.equals("{TIMESTAMP}", ignoreCase = true)) {
+                        payloadJson.put(pair.key, timestamp)
+                    } else {
+                        payloadJson.put(pair.key, replacedValue)
+                    }
+                }
+                payloadJson.toString()
+            }
+        }
+    }
+
+    private fun replaceInJson(element: Any, replacements: Map<String, String>): Any {
+        return when (element) {
+            is JSONObject -> {
+                val result = JSONObject()
+                for (key in element.keys()) {
+                    val value = element.get(key)
+                    result.put(key, replaceInJson(value, replacements))
+                }
+                result
+            }
+            is JSONArray -> {
+                val result = JSONArray()
+                for (i in 0 until element.length()) {
+                    result.put(replaceInJson(element.get(i), replacements))
+                }
+                result
+            }
+            is String -> {
+                var str = element
+                for ((macro, rep) in replacements) {
+                    str = str.replace(Regex("(?i)" + Regex.escape(macro)), rep)
+                }
+                str
+            }
+            else -> element
+        }
+    }
+
     suspend fun submitScan(
         context: Context,
         code: String,
@@ -69,16 +184,18 @@ object WebSubmitManager {
         runCatching {
             val prefs = context.getPreferences(
                 PreferenceStore.WEB_SUBMIT_ENABLED,
+                PreferenceStore.WEB_SUBMIT_FORMAT,
                 PreferenceStore.WEB_SUBMIT_URL,
                 PreferenceStore.WEB_SUBMIT_USERNAME,
                 PreferenceStore.WEB_SUBMIT_PASSWORD,
-                PreferenceStore.WEB_SUBMIT_FIELDS_JSON
+                PreferenceStore.WEB_SUBMIT_FIELDS_JSON,
+                PreferenceStore.WEB_SUBMIT_TENCENT_TEMPLATE
             ).first()
 
             val enabled = PreferenceStore.WEB_SUBMIT_ENABLED.extract(prefs)
             if (!enabled) return@runCatching
 
-                        val rawUrl = PreferenceStore.WEB_SUBMIT_URL.extract(prefs).trim()
+            val rawUrl = PreferenceStore.WEB_SUBMIT_URL.extract(prefs).trim()
             if (rawUrl.isBlank()) {
                 Log.w(TAG, "Web submit enabled but URL is empty")
                 return@runCatching
@@ -89,33 +206,22 @@ object WebSubmitManager {
                 rawUrl
             }
 
+            val submitFormat = PreferenceStore.WEB_SUBMIT_FORMAT.extract(prefs)
             val username = PreferenceStore.WEB_SUBMIT_USERNAME.extract(prefs).trim()
             val password = PreferenceStore.WEB_SUBMIT_PASSWORD.extract(prefs).trim()
             val fieldsJson = PreferenceStore.WEB_SUBMIT_FIELDS_JSON.extract(prefs)
-            val scannerId = android.os.Build.MODEL ?: "Android"
+            val tencentTemplate = PreferenceStore.WEB_SUBMIT_TENCENT_TEMPLATE.extract(prefs)
+            val scannerId = Build.MODEL ?: "Android"
 
-            val fieldPairs = parseFields(fieldsJson)
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val dateTimeStr = dateFormat.format(Date(timestamp))
-
-            val payloadJson = JSONObject()
-            for (pair in fieldPairs) {
-                val replacedValue = pair.value
-                    .replace(Regex("(?i)\\{CODE\\}"), code)
-                    .replace(Regex("(?i)\\{FORMAT\\}"), format)
-                    .replace(Regex("(?i)\\{TIMESTAMP\\}"), timestamp.toString())
-                    .replace(Regex("(?i)\\{DATETIME\\}"), dateTimeStr)
-                    .replace(Regex("(?i)\\{SCANNER_ID\\}"), scannerId)
-
-                // If the placeholder was purely {TIMESTAMP}, serialize as long
-                if (pair.value.equals("{TIMESTAMP}", ignoreCase = true)) {
-                    payloadJson.put(pair.key, timestamp)
-                } else {
-                    payloadJson.put(pair.key, replacedValue)
-                }
-            }
-
-            val jsonBody = payloadJson.toString()
+            val jsonBody = buildPayload(
+                format = submitFormat,
+                standardFieldsJson = fieldsJson,
+                tencentTemplateJson = tencentTemplate,
+                code = code,
+                barcodeFormat = format,
+                timestamp = timestamp,
+                scannerId = scannerId
+            )
             Log.d(TAG, "Submitting to $targetUrl with payload: $jsonBody")
 
             val url = URL(targetUrl)

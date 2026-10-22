@@ -733,6 +733,19 @@ internal fun buildWebSubmitSettings(
     add {
         val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
         if (webSubmitEnabled == true) {
+            ComboBoxEnumPreference(
+                title = strings[R.string.web_submit_format],
+                desc = strings[R.string.web_submit_format_desc],
+                icon = Icons.Default.DataObject,
+                values = strings.array(R.array.web_submit_format_values),
+                preference = PreferenceStore.WEB_SUBMIT_FORMAT
+            )
+        }
+    }
+
+    add {
+        val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
+        if (webSubmitEnabled == true) {
             TextBoxPreference(
                 title = strings[R.string.web_submit_url],
                 desc = strings[R.string.web_submit_url_desc],
@@ -768,19 +781,30 @@ internal fun buildWebSubmitSettings(
 
     add {
         val webSubmitEnabled by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_ENABLED)
+        val submitFormat by context.getPreferenceState(PreferenceStore.WEB_SUBMIT_FORMAT)
         if (webSubmitEnabled == true) {
-            val dialogState = rememberDialogState()
-            dev.fabik.bluetoothhid.ui.WebSubmitFieldManageDialog(dialogState)
-            ButtonPreference(
-                title = strings[R.string.web_submit_manage_fields],
-                desc = strings[R.string.web_submit_manage_fields_desc],
-                icon = Icons.Default.DataObject,
-                onClick = dialogState::open
-            )
+            if (submitFormat == dev.fabik.bluetoothhid.utils.WebSubmitFormat.TENCENT_DOCS) {
+                val dialogState = rememberDialogState()
+                dev.fabik.bluetoothhid.ui.TencentDocsTemplateDialog(dialogState)
+                ButtonPreference(
+                    title = strings[R.string.web_submit_manage_tencent_template],
+                    desc = strings[R.string.web_submit_manage_tencent_template_desc],
+                    icon = Icons.Default.Description,
+                    onClick = dialogState::open
+                )
+            } else {
+                val dialogState = rememberDialogState()
+                dev.fabik.bluetoothhid.ui.WebSubmitFieldManageDialog(dialogState)
+                ButtonPreference(
+                    title = strings[R.string.web_submit_manage_fields],
+                    desc = strings[R.string.web_submit_manage_fields_desc],
+                    icon = Icons.Default.DataObject,
+                    onClick = dialogState::open
+                )
+            }
         }
     }
 }
-
 internal fun buildAboutSettings(
     strings: SettingsStrings,
     context: Context,

@@ -404,6 +404,18 @@
     <string name="web_submission">Web HTTP 提交</string>
     <string name="enable_web_submit">启用 Web 提交</string>
     <string name="enable_web_submit_desc">扫码后自动以 POST 提交到指定的 Web 接口</string>
+    <string name="web_submit_format">数据封装格式</string>
+    <string name="web_submit_format_desc">选择扫码后提交的 JSON 数据格式（标准 JSON 或 腾讯文档）</string>
+    <string-array name="web_submit_format_values">
+        <item>标准 JSON</item>
+        <item>腾讯文档</item>
+    </string-array>
+    <string name="web_submit_manage_tencent_template">配置腾讯文档模板</string>
+    <string name="web_submit_manage_tencent_template_desc">配置腾讯文档智能表格接收的 JSON 架构与记录</string>
+    <string name="tencent_docs_template_hint">配置腾讯文档智能表格接收的 JSON 模板，扫码时将自动替换其中的 {CODE}、{TIMESTAMP} 等宏变量。</string>
+    <string name="format_json">格式化 JSON</string>
+    <string name="restore_default">恢复默认模板</string>
+    <string name="invalid_json_format">JSON 格式有误，请检查语法</string>
     <string name="web_submit_url">Web 目标网址</string>
     <string name="web_submit_url_desc">HTTP 或 HTTPS 接口地址 (如 http://192.168.1.100:8080/api)</string>
     <string name="web_submit_username">认证用户名</string>

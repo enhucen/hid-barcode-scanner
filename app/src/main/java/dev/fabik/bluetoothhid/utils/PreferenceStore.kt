@@ -48,6 +48,13 @@ val LocalDataStore = staticCompositionLocalOf<DataStore<Preferences>> {
 
 // Enums for type-safe preference values
 // Note: ordinal is used as index - no need for explicit val index
+enum class WebSubmitFormat {
+    STANDARD, TENCENT_DOCS;
+    companion object {
+        fun fromIndex(index: Int) = entries.getOrNull(index) ?: STANDARD
+    }
+}
+
 enum class ConnectionMode {
     HID, RFCOMM, EXTERNAL;
     companion object {
@@ -305,11 +312,15 @@ open class PreferenceStore {
 
         // Web submission
         val WEB_SUBMIT_ENABLED = booleanPreferencesKey("web_submit_enabled") defaultsTo false
+        val WEB_SUBMIT_FORMAT =
+            intPreferencesKey("web_submit_format").enumDefaultsTo(WebSubmitFormat::fromIndex)
         val WEB_SUBMIT_URL = stringPreferencesKey("web_submit_url") defaultsTo ""
         val WEB_SUBMIT_USERNAME = stringPreferencesKey("web_submit_username") defaultsTo ""
         val WEB_SUBMIT_PASSWORD = stringPreferencesKey("web_submit_password") defaultsTo ""
         val WEB_SUBMIT_FIELDS_JSON = stringPreferencesKey("web_submit_fields_json") defaultsTo
             "[{\"key\":\"code\",\"value\":\"{CODE}\"},{\"key\":\"project\",\"value\":\"Default_Project\"},{\"key\":\"station\",\"value\":\"Station_01\"},{\"key\":\"timestamp\",\"value\":\"{TIMESTAMP}\"}]"
+        val WEB_SUBMIT_TENCENT_TEMPLATE = stringPreferencesKey("web_submit_tencent_template") defaultsTo
+            dev.fabik.bluetoothhid.web.WebSubmitManager.DEFAULT_TENCENT_TEMPLATE
 
         // val RAW_VALUE = booleanPreferencesKey("raw_value") defaultsTo false - Removed
         // val SHOW_POSSIBLE = booleanPreferencesKey("show_possible") defaultsTo false - Removed

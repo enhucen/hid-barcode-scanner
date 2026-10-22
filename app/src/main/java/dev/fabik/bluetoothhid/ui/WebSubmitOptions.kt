@@ -1,4 +1,7 @@
-package dev.fabik.bluetoothhid.ui
+﻿package dev.fabik.bluetoothhid.ui
+
+import android.widget.Toast
+import org.json.JSONObject
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -245,6 +248,126 @@ fun WebSubmitFieldManageDialog(dialogState: DialogState) {
                     }
                 }
             }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TencentDocsTemplateDialog(dialogState: DialogState) {
+    val context = LocalContext.current
+    var templateJson by rememberPreference(PreferenceStore.WEB_SUBMIT_TENCENT_TEMPLATE)
+    var currentText by remember { mutableStateOf("") }
+
+    LaunchedEffect(templateJson, dialogState.openState) {
+        if (dialogState.openState) {
+            currentText = if (templateJson.isBlank()) {
+                WebSubmitManager.DEFAULT_TENCENT_TEMPLATE
+            } else {
+                templateJson
+            }
+        }
+    }
+
+    ConfirmDialog(
+        dialogState = dialogState,
+        title = stringResource(R.string.web_submit_manage_tencent_template),
+        onConfirm = {
+            val isValid = runCatching { JSONObject(currentText) }.isSuccess
+            if (isValid) {
+                templateJson = currentText.trim()
+                dialogState.close()
+            } else {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.invalid_json_format),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        ) {
+            Text(
+                stringResource(R.string.tencent_docs_template_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                stringResource(R.string.available_placeholders),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(4.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val macros = listOf("{CODE}", "{TIMESTAMP}", "{DATETIME}", "{FORMAT}", "{SCANNER_ID}")
+                for (m in macros) {
+                    SuggestionChip(
+                        onClick = {
+                            currentText += m
+                        },
+                        label = { Text(m, style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        runCatching {
+                            val formatted = JSONObject(currentText).toString(2)
+                            currentText = formatted
+                        }.onFailure {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.invalid_json_format),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.format_json), style = MaterialTheme.typography.labelMedium)
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        currentText = WebSubmitManager.DEFAULT_TENCENT_TEMPLATE
+                    }
+                ) {
+                    Text(stringResource(R.string.restore_default), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = currentText,
+                onValueChange = { currentText = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp),
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                ),
+                maxLines = 20
+            )
         }
     }
 }

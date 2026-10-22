@@ -460,6 +460,18 @@
     <string name="web_submission">Web Submission</string>
     <string name="enable_web_submit">Enable Web Submission</string>
     <string name="enable_web_submit_desc">Automatically POST scanned data to a Web HTTP API</string>
+    <string name="web_submit_format">Data Format</string>
+    <string name="web_submit_format_desc">Select data packaging format (Standard JSON or Tencent Docs)</string>
+    <string-array name="web_submit_format_values">
+        <item>Standard JSON</item>
+        <item>Tencent Docs</item>
+    </string-array>
+    <string name="web_submit_manage_tencent_template">Configure Tencent Docs Template</string>
+    <string name="web_submit_manage_tencent_template_desc">Configure JSON schema and records for Tencent Docs smart sheet</string>
+    <string name="tencent_docs_template_hint">Configure the JSON template required by Tencent Docs. Macro variables such as {CODE} and {TIMESTAMP} will be dynamically replaced when scanning.</string>
+    <string name="format_json">Format JSON</string>
+    <string name="restore_default">Restore Default</string>
+    <string name="invalid_json_format">Invalid JSON format, please check syntax</string>
     <string name="web_submit_url">Target Web URL</string>
     <string name="web_submit_url_desc">HTTP or HTTPS API endpoint</string>
     <string name="web_submit_username">Username</string>
