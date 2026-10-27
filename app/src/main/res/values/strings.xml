@@ -472,6 +472,14 @@
     <string name="format_json">Format JSON</string>
     <string name="restore_default">Restore Default</string>
     <string name="invalid_json_format">Invalid JSON format, please check syntax</string>
+    <string name="import_tencent_json">Import Sheet JSON</string>
+    <string name="import_tencent_json_desc">Paste example JSON copied from Tencent Docs or WeCom Smart Sheet</string>
+    <string name="parse_and_apply">Parse &amp; Apply</string>
+    <string name="view_raw_json">Raw JSON</string>
+    <string name="view_visual_mapping">Field Mapping</string>
+    <string name="import_success_count">Successfully parsed %d fields</string>
+    <string name="import_failed_no_schema">No schema definitions found, please check JSON format</string>
+    <string name="mapped_value">Mapped Value / Content</string>
     <string name="web_submit_url">Target Web URL</string>
     <string name="web_submit_url_desc">HTTP or HTTPS API endpoint</string>
     <string name="web_submit_username">Username</string>

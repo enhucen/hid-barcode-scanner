@@ -1,4 +1,4 @@
-﻿package dev.fabik.bluetoothhid.web
+package dev.fabik.bluetoothhid.web
 
 import android.content.Context
 import android.os.Build
@@ -27,6 +27,13 @@ object WebSubmitManager {
     private const val TAG = "WebSubmitManager"
 
     data class FieldPair(val key: String, val value: String)
+
+    data class TencentField(
+        val id: String,
+        val title: String,
+        val type: String,
+        var mappedValue: String = ""
+    )
 
     val DEFAULT_TENCENT_TEMPLATE: String = """{
   "schema": {
@@ -98,6 +105,138 @@ object WebSubmitManager {
             array.put(obj)
         }
         return array.toString()
+    }
+
+    fun parseTencentFields(jsonStr: String): List<TencentField> {
+        return runCatching {
+            val root = JSONObject(jsonStr.ifBlank { DEFAULT_TENCENT_TEMPLATE })
+            val schema = root.optJSONObject("schema") ?: return emptyList()
+            val records = root.optJSONArray("add_records") ?: root.optJSONArray("records")
+            val values = records?.optJSONObject(0)?.optJSONObject("values")
+
+            val fields = mutableListOf<TencentField>()
+            val keys = schema.keys()
+            while (keys.hasNext()) {
+                val fid = keys.next()
+                val fieldDef = schema.optJSONObject(fid) ?: continue
+                val title = fieldDef.optString("title", fid)
+                val type = fieldDef.optString("type", "text")
+
+                var mappedVal = ""
+                if (values != null && values.has(fid)) {
+                    val rawVal = values.get(fid)
+                    mappedVal = when (rawVal) {
+                        is JSONArray -> {
+                            val firstObj = rawVal.optJSONObject(0)
+                            if (firstObj != null) {
+                                if (firstObj.has("user_id")) {
+                                    firstObj.optString("user_id", "")
+                                } else if (firstObj.has("text")) {
+                                    firstObj.optString("text", "")
+                                } else {
+                                    firstObj.toString()
+                                }
+                            } else {
+                                rawVal.optString(0, "")
+                            }
+                        }
+                        else -> rawVal.toString()
+                    }
+                }
+
+                // Smart auto-mapping if the extracted value is generic placeholder or empty
+                if (mappedVal.isBlank() || mappedVal == "测试文本" || mappedVal == "测试选项") {
+                    if (title.contains("条码", ignoreCase = true) ||
+                        title.contains("code", ignoreCase = true) ||
+                        title.contains("扫码", ignoreCase = true)
+                    ) {
+                        mappedVal = "{CODE}"
+                    } else if (type.equals("date_time", ignoreCase = true) ||
+                        title.contains("时间", ignoreCase = true) ||
+                        title.contains("日期", ignoreCase = true)
+                    ) {
+                        mappedVal = "{TIMESTAMP}"
+                    }
+                }
+
+                fields.add(TencentField(id = fid, title = title, type = type, mappedValue = mappedVal))
+            }
+
+            // If no field mapped to {CODE}, map the first text field
+            if (fields.none { it.mappedValue.equals("{CODE}", ignoreCase = true) }) {
+                val firstTextField = fields.firstOrNull { it.type.equals("text", ignoreCase = true) }
+                firstTextField?.mappedValue = "{CODE}"
+            }
+
+            fields
+        }.getOrElse {
+            emptyList()
+        }
+    }
+
+    fun buildTencentTemplate(originalJson: String, fields: List<TencentField>): String {
+        return runCatching {
+            val root = JSONObject(originalJson.ifBlank { DEFAULT_TENCENT_TEMPLATE })
+            var records = root.optJSONArray("add_records")
+            if (records == null || records.length() == 0) {
+                records = root.optJSONArray("records")
+            }
+            if (records == null || records.length() == 0) {
+                records = JSONArray()
+                records.put(JSONObject())
+                root.put("add_records", records)
+            }
+            val record = records.getJSONObject(0)
+            val values = JSONObject()
+
+            for (field in fields) {
+                when (field.type.lowercase(Locale.ROOT)) {
+                    "single_select", "multi_select" -> {
+                        val arr = JSONArray()
+                        if (field.mappedValue.isNotBlank()) {
+                            arr.put(JSONObject().put("text", field.mappedValue))
+                        }
+                        values.put(field.id, arr)
+                    }
+                    "user" -> {
+                        val arr = JSONArray()
+                        if (field.mappedValue.isNotBlank()) {
+                            arr.put(JSONObject().put("user_id", field.mappedValue))
+                        }
+                        values.put(field.id, arr)
+                    }
+                    "number" -> {
+                        val num = field.mappedValue.toDoubleOrNull()
+                        if (num != null) {
+                            if (num % 1.0 == 0.0) {
+                                values.put(field.id, num.toLong())
+                            } else {
+                                values.put(field.id, num)
+                            }
+                        } else {
+                            values.put(field.id, field.mappedValue)
+                        }
+                    }
+                    "checkbox" -> {
+                        if (field.mappedValue.equals("true", ignoreCase = true)) {
+                            values.put(field.id, true)
+                        } else if (field.mappedValue.equals("false", ignoreCase = true)) {
+                            values.put(field.id, false)
+                        } else {
+                            values.put(field.id, field.mappedValue)
+                        }
+                    }
+                    else -> {
+                        values.put(field.id, field.mappedValue)
+                    }
+                }
+            }
+
+            record.put("values", values)
+            root.toString(2)
+        }.getOrElse {
+            originalJson
+        }
     }
 
     fun buildPayload(

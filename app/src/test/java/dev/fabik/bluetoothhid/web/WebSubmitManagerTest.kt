@@ -170,4 +170,84 @@ class WebSubmitManagerTest {
         val values = root.getJSONArray("add_records").getJSONObject(0).getJSONObject("values")
         assertEquals("FALLBACK_CODE", values.getString("f04Gwj"))
     }
+
+    @Test
+    fun `parseTencentFields and buildTencentTemplate adapt to sample 2 with 7 fields correctly`() {
+        val sample2 = """
+        {
+          "schema": {
+            "fdgkIT": { "title": "文本", "type": "text" },
+            "fVc9yb": { "title": "单选", "type": "single_select", "enum": [] },
+            "fK59d9": { "title": "人员", "type": "user" },
+            "fbkVfq": { "title": "数字", "type": "number" },
+            "fuonhj": { "title": "日期", "type": "date_time" },
+            "fdMCrH": { "title": "文本 2", "type": "text" },
+            "fxNE5l": { "title": "文本 3", "type": "text" }
+          },
+          "add_records": [
+            {
+              "values": {
+                "fdgkIT": "测试文本",
+                "fVc9yb": [{ "text": "测试选项" }],
+                "fK59d9": [{ "user_id": "" }],
+                "fbkVfq": 1,
+                "fuonhj": "1735660800000",
+                "fdMCrH": "测试文本",
+                "fxNE5l": "测试文本"
+              }
+            }
+          ]
+        }
+        """.trimIndent()
+
+        val fields = WebSubmitManager.parseTencentFields(sample2)
+        assertEquals(7, fields.size)
+
+        // Verify auto-mapping
+        val textField = fields.first { it.id == "fdgkIT" }
+        assertEquals("文本", textField.title)
+        assertEquals("text", textField.type)
+        assertEquals("{CODE}", textField.mappedValue)
+
+        val dateField = fields.first { it.id == "fuonhj" }
+        assertEquals("日期", dateField.title)
+        assertEquals("date_time", dateField.type)
+        assertEquals("{TIMESTAMP}", dateField.mappedValue)
+
+        val selectField = fields.first { it.id == "fVc9yb" }
+        assertEquals("单选", selectField.title)
+        assertEquals("single_select", selectField.type)
+        assertEquals("测试选项", selectField.mappedValue)
+
+        val userField = fields.first { it.id == "fK59d9" }
+        assertEquals("人员", userField.title)
+        assertEquals("user", userField.type)
+
+        // User customizes mapping values
+        userField.mappedValue = "USER_1001"
+        selectField.mappedValue = "工位A"
+        val numberField = fields.first { it.id == "fbkVfq" }
+        numberField.mappedValue = "42"
+
+        // Rebuild template
+        val updatedTemplate = WebSubmitManager.buildTencentTemplate(sample2, fields)
+        val payload = WebSubmitManager.buildPayload(
+            format = WebSubmitFormat.TENCENT_DOCS,
+            standardFieldsJson = "",
+            tencentTemplateJson = updatedTemplate,
+            code = "BARCODE_777",
+            barcodeFormat = "QR_CODE",
+            timestamp = 1735660800000L
+        )
+
+        val root = JSONObject(payload)
+        val values = root.getJSONArray("add_records").getJSONObject(0).getJSONObject("values")
+
+        // Assert 101240 compliant structures
+        assertEquals("BARCODE_777", values.getString("fdgkIT"))
+        assertEquals(1735660800000L.toString(), values.getString("fuonhj"))
+        assertEquals("工位A", values.getJSONArray("fVc9yb").getJSONObject(0).getString("text"))
+        assertEquals("USER_1001", values.getJSONArray("fK59d9").getJSONObject(0).getString("user_id"))
+        assertEquals(42, values.getInt("fbkVfq"))
+    }
 }

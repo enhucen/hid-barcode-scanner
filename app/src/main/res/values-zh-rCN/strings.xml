@@ -416,6 +416,14 @@
     <string name="format_json">格式化 JSON</string>
     <string name="restore_default">恢复默认模板</string>
     <string name="invalid_json_format">JSON 格式有误，请检查语法</string>
+    <string name="import_tencent_json">导入表格 JSON</string>
+    <string name="import_tencent_json_desc">粘贴从腾讯文档或企微智能表格复制的示例 JSON</string>
+    <string name="parse_and_apply">解析并应用</string>
+    <string name="view_raw_json">源码模式</string>
+    <string name="view_visual_mapping">表单映射</string>
+    <string name="import_success_count">已成功解析 %d 个字段</string>
+    <string name="import_failed_no_schema">未找到 schema 字段定义，请确认是否为有效示例 JSON</string>
+    <string name="mapped_value">映射值 / 填充内容</string>
     <string name="web_submit_url">Web 目标网址</string>
     <string name="web_submit_url_desc">HTTP 或 HTTPS 接口地址 (如 http://192.168.1.100:8080/api)</string>
     <string name="web_submit_username">认证用户名</string>
