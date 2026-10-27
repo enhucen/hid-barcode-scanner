@@ -1,4 +1,4 @@
-package dev.fabik.bluetoothhid.web
+﻿package dev.fabik.bluetoothhid.web
 
 import android.content.Context
 import android.os.Build
@@ -145,7 +145,7 @@ object WebSubmitManager {
                 }
 
                 // Smart auto-mapping if the extracted value is generic placeholder or empty
-                if (mappedVal.isBlank() || mappedVal == "测试文本" || mappedVal == "测试选项") {
+                if (mappedVal.isBlank() || mappedVal == "测试文本" || mappedVal == "测试选项" || (type.equals("date_time", ignoreCase = true) && mappedVal.matches(Regex("^\\d{10,13}$")))) {
                     if (title.contains("条码", ignoreCase = true) ||
                         title.contains("code", ignoreCase = true) ||
                         title.contains("扫码", ignoreCase = true)
